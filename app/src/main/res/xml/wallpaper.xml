@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The live wallpaper's entry in the system picker; Settings there opens Badal. -->
+<wallpaper xmlns:android="http://schemas.android.com/apk/res/android"
+    android:description="@string/live_description"
+    android:settingsActivity="io.github.vivekg7.badal.MainActivity"
+    android:thumbnail="@mipmap/ic_launcher" />

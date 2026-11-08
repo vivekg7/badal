@@ -3,6 +3,7 @@ package io.github.vivekg7.badal
 import android.app.AlarmManager
 import android.app.PendingIntent
 import android.app.WallpaperManager
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.os.PowerManager
@@ -58,6 +59,20 @@ class Engine(
         for (s in screens) out = out.with(s, Plan.show(out.progress(s), id, Plan.albumAt(out.rotation(s), now(), zone), now()))
         commit(st, Plan.synced(out), force = screens.toSet())
     }
+
+    /** Badal is the home screen's live wallpaper, which draws the home picture itself (plan 004). */
+    fun live() = WallpaperManager.getInstance(context).wallpaperInfo?.component == ComponentName(context, LiveWallpaper::class.java)
+
+    /** Leave the live wallpaper: setting the home picture as a still one replaces it. */
+    suspend fun still() =
+        mutex.withLock {
+            val st = store.state.value
+            if (st.homeNow.current == null) {
+                WallpaperManager.getInstance(context).clear(WallpaperManager.FLAG_SYSTEM)
+            } else {
+                commit(st, st, force = setOf(Screen.HOME), live = false)
+            }
+        }
 
     /** Change one screen's settings, then bring the wallpapers in line with them. */
     suspend fun edit(
@@ -117,12 +132,14 @@ class Engine(
         before: State,
         after: State,
         force: Set<Screen> = emptySet(),
+        live: Boolean = live(),
     ) {
         val wanted =
             Screen.entries.mapNotNull { s ->
                 val id = after.progress(s).current ?: return@mapNotNull null
                 val touched = s in force || (after.rotation(s).enabled && id != before.progress(s).current)
-                if (touched) s to id else null
+                // The live wallpaper follows homeNow on its own; a still one would replace it.
+                if (touched && !(s == Screen.HOME && live)) s to id else null
             }
         drawing.value = wanted.isNotEmpty()
         // Busy until the new progress is saved, so the app never shows the old picture as done.

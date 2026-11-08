@@ -1,5 +1,10 @@
 package io.github.vivekg7.badal.ui
 
+import android.app.WallpaperManager
+import android.content.ActivityNotFoundException
+import android.content.ComponentName
+import android.content.Context
+import android.content.Intent
 import android.text.format.DateUtils
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -65,6 +70,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import io.github.vivekg7.badal.Fit
 import io.github.vivekg7.badal.Framing
+import io.github.vivekg7.badal.LiveWallpaper
 import io.github.vivekg7.badal.Order
 import io.github.vivekg7.badal.Plan
 import io.github.vivekg7.badal.Rotation
@@ -99,6 +105,9 @@ fun ScreenPage(
     var picking by remember { mutableStateOf(false) }
     var choosingInterval by remember { mutableStateOf(false) }
     var addingRange by remember { mutableStateOf(false) }
+    // Whether Badal is the live wallpaper is the system's to say: ask again on every return from its picker.
+    val resumed = resumes()
+    var live by remember(resumed) { mutableStateOf(screen == Screen.HOME && app.engine.live()) }
 
     Column(Modifier.verticalScroll(rememberScrollState()).padding(bottom = 24.dp)) {
         Preview(screen, state, follows, onFrame)
@@ -256,6 +265,30 @@ fun ScreenPage(
                     trailingContent = { Text("${shade.toInt()}%") },
                 )
             }
+            if (screen == Screen.HOME && (r.enabled || live)) {
+                ListItem(
+                    headlineContent = { Text("Crossfade") },
+                    supportingContent = {
+                        Text(
+                            if (live) {
+                                "On: Badal is the live wallpaper, and fades to each new picture"
+                            } else {
+                                "Fade to each new picture while you watch, instead of switching. Makes Badal a live wallpaper."
+                            },
+                        )
+                    },
+                    trailingContent = {
+                        Switch(live, { on ->
+                            if (on) {
+                                chooseLive(context)
+                            } else {
+                                live = false
+                                app.scope.launch { app.engine.still() }
+                            }
+                        })
+                    },
+                )
+            }
         }
     }
 
@@ -276,6 +309,16 @@ fun ScreenPage(
             addingRange = false
             edit { it.copy(ranges = it.ranges + range) }
         }, onDismiss = { addingRange = false })
+    }
+}
+
+/** The system's preview of Badal's live wallpaper, where the user sets it (plan 004). */
+private fun chooseLive(context: Context) {
+    val badal = ComponentName(context, LiveWallpaper::class.java)
+    try {
+        context.startActivity(Intent(WallpaperManager.ACTION_CHANGE_LIVE_WALLPAPER).putExtra(WallpaperManager.EXTRA_LIVE_WALLPAPER_COMPONENT, badal))
+    } catch (e: ActivityNotFoundException) {
+        context.startActivity(Intent(WallpaperManager.ACTION_LIVE_WALLPAPER_CHOOSER))
     }
 }
 

@@ -14,7 +14,8 @@ Read the plans before proposing a change; rejected ideas are listed there.
   renderer and every in-app preview place pictures through it, so a preview
   can't drift from the wallpaper (plan 002).
 - **Set home and lock with separate `setBitmap` calls**, never both flags at
-  once (plan 001).
+  once (plan 001). While Badal is the live wallpaper (`Engine.live`), never
+  set the home screen at all: a still wallpaper replaces it (plan 004).
 - **The engine writes only `homeNow` / `lockNow`**; settings and albums are
   changed through `Engine.edit` and `Library`, each of which ends in
   `Engine.settle()` so the wallpapers, the alarm and the lock watcher follow.

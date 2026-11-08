@@ -2,4 +2,5 @@
 <resources>
     <string name="app_name">Badal</string>
     <string name="tile">Next wallpaper</string>
+    <string name="live_description">Your home screen album, fading from one picture to the next</string>
 </resources>

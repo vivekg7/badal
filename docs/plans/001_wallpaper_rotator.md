@@ -85,7 +85,8 @@ different one.
   with instant swaps and crossfades and no foreground service. Rejected for
   now: One UI's lock screen doesn't take third-party live wallpapers, and
   Samsung's home-screen wallpaper options (dimming, dark mode) work on static
-  images only. It's worth trying later as an optional home-screen mode.
+  images only. Since added as an optional home-screen mode, for the
+  crossfade ([004](004_crossfade.md)).
 - **WorkManager** for intervals: its minimum period is 15 minutes, and it adds
   a dependency where one alarm does.
 - **Room**: no queries that a list in memory can't answer. It would bring KSP
@@ -107,9 +108,10 @@ different one.
 
 Per-picture framing was added by [002](002_framing.md); the clock shade,
 reordering, favourites, day-of-week ranges and the battery-saver pause by
-[003](003_shade_order_favourites_days.md).
+[003](003_shade_order_favourites_days.md); the crossfade by
+[004](004_crossfade.md).
 
 ## Ideas for later
 
-Live-folder albums (re-scan a folder), a grayscale or blur effect, a crossfade
-(needs the live wallpaper), and a "change only while charging" rule.
+Live-folder albums (re-scan a folder), a grayscale or blur effect, and a
+"change only while charging" rule.
