@@ -1,6 +1,6 @@
 # 005 — Wallpapers Badal draws itself
 
-Status: built, not yet released. Tested on the Android 17 emulator.
+Status: built (v0.5.0, 2026-11-08). Tested on the Android 17 emulator.
 
 ## Problem
 
