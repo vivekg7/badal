@@ -1,6 +1,6 @@
 # 004 — Crossfade on the home screen
 
-Status: built (2026-11-08). Tested on the Android 17 emulator.
+Status: built (v0.4.0, 2026-11-08). Tested on the Android 17 emulator.
 
 ## Problem
 
