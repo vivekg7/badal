@@ -83,10 +83,10 @@ class PlanTest {
     @Test
     fun rangesRunPastMidnight() {
         val night = TimeRange(22 * 60, 6 * 60, 200)
-        assertTrue(23 * 60 in night)
-        assertTrue(5 * 60 + 59 in night)
-        assertFalse(6 * 60 in night)
-        assertFalse(12 * 60 in night)
+        assertTrue(night.holds(1, 23 * 60))
+        assertTrue(night.holds(1, 5 * 60 + 59))
+        assertFalse(night.holds(1, 6 * 60))
+        assertFalse(night.holds(1, 12 * 60))
         val r = base.home.copy(ranges = listOf(night))
         assertEquals(200L, Plan.albumAt(r, at(23), zone))
         assertEquals(100L, Plan.albumAt(r, at(9), zone))
@@ -169,5 +169,42 @@ class PlanTest {
         }
         val three = seen.count { it == 3L }
         assertTrue("3 showed $three times in 60", three in 18..22)
+    }
+
+    @Test
+    fun aRangeCanBeLimitedToSomeDays() {
+        // Friday and Saturday nights; the part after midnight belongs to the night it started.
+        val weekend = TimeRange(22 * 60, 6 * 60, 200, days = setOf(5, 6))
+        assertTrue(weekend.holds(5, 23 * 60))
+        assertTrue(weekend.holds(7, 2 * 60)) // Sunday 02:00 is still Saturday night
+        assertFalse(weekend.holds(7, 23 * 60))
+        assertFalse(weekend.holds(5, 2 * 60)) // Friday 02:00 is Thursday night
+        val r = base.home.copy(ranges = listOf(weekend))
+        assertEquals(200L, Plan.albumAt(r, at(23, day = 7), zone))
+        assertEquals(100L, Plan.albumAt(r, at(23, day = 8), zone))
+    }
+
+    @Test
+    fun nextEdgeSkipsDaysWithoutTheRange() {
+        // Monday only: on Sunday morning the next switch is Monday 09:00, not Sunday's.
+        val r = base.home.copy(ranges = listOf(TimeRange(9 * 60, 17 * 60, 200, days = setOf(1))))
+        assertEquals(at(9, day = 9), Plan.nextEdge(r, at(8, day = 8), zone))
+        assertEquals(at(17, day = 9), Plan.nextEdge(r, at(10, day = 9), zone))
+        // A range that covers every minute of every day never switches.
+        assertNull(Plan.nextEdge(base.home.copy(ranges = listOf(TimeRange(0, 0, 200))), at(9), zone))
+    }
+
+    @Test
+    fun batterySaverPausesIntervalsButNotAlbums() {
+        val st =
+            base.copy(
+                home = base.home.copy(everyMinutes = 60, ranges = listOf(TimeRange(22 * 60, 6 * 60, 200))),
+                homeNow = Progress(current = 1, album = 100, changedAt = at(9)),
+            )
+        assertFalse(Plan.due(st, Screen.HOME, at(10), zone, paused = true))
+        assertTrue(Plan.due(st.copy(homeNow = st.homeNow.copy(changedAt = at(21))), Screen.HOME, at(22), zone, paused = true))
+        // Paused, an overdue interval tries again an interval later, not every minute.
+        assertEquals(Alarm(at(11, 30), false), Plan.nextAlarm(st, at(10, 30), zone, paused = true))
+        assertEquals(Alarm(at(10, 31), false), Plan.nextAlarm(st, at(10, 30), zone))
     }
 }

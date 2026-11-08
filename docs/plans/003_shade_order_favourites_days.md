@@ -1,17 +1,19 @@
-# 003 — Clock shade, album order, favourites
+# 003 — Clock shade, album order, favourites, days of the week
 
 Status: built (2026-11-08). Tested on the Android 17 emulator, and the shade
 on a Galaxy A35 (One UI, Android 17) against its real clock.
 
 ## Problem
 
-Three gaps left by 001 and 002:
+Four gaps left by 001 and 002:
 
 - **Darken** dims the whole picture to keep the lock-screen clock readable, so a
   bright sky behind the clock costs the whole picture its colour.
 - **In order** plays an album in the order pictures were added, and nothing
   could change that.
 - **Every picture is equal** in Shuffle. Some deserve to come up more often.
+- **Time ranges hold every day.** A weekend album, or a work-hours one on
+  weekdays only, wasn't possible.
 
 ## Decisions
 
@@ -50,6 +52,23 @@ would have to explain what "weight 3" means. **In order ignores stars**: it
 plays the album as arranged. Stars belong to the album, so a picture's star
 goes when it is removed.
 
+**A time range can hold on chosen days** (`TimeRange.days`, ISO numbers; empty
+means every day, which is what older saved ranges load as). The part of a range
+after midnight belongs to the day it started: Friday 22:00–06:00 holds until
+Saturday morning, which is what "Friday night" means. `nextEdge` now tries each
+start and end minute over the next eight days, and keeps only the moments
+where the album actually changes. So a Saturday range doesn't wake the phone at
+22:00 on Tuesday. As a side effect, a range that uses the screen's own album
+schedules no alarm at all.
+
+**Pause on battery saver** (`State.saverPause`, off by default). While saver is
+on, changes on lock and on a timer are skipped. Time-of-day albums still switch:
+they happen a few times a day at most, and "night pictures at night" is a
+promise the user set up on purpose. A paused interval retries one interval
+later, not every minute, so the pause doesn't itself cost wake-ups. When saver
+goes off, the next lock or interval changes the picture. Badal doesn't listen
+for saver going off, which would mean another registered receiver.
+
 ## Rejected
 
 - **A shade that adapts to how bright the picture is behind the clock.** It
@@ -59,3 +78,5 @@ goes when it is removed.
 - **Drag handles on each picture**, to reorder without a mode: they crowd a
   three-column grid of thumbnails.
 - **A weight per favourite** (1×–5×): see above.
+- **Day chips on every range in the list**, editable in place: ranges are
+  added once and rarely changed. Remove and add again.

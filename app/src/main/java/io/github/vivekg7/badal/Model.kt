@@ -2,7 +2,6 @@ package io.github.vivekg7.badal
 
 import kotlinx.serialization.Serializable
 import java.time.Instant
-import java.time.LocalDate
 import java.time.ZoneId
 import kotlin.random.Random
 
@@ -32,19 +31,31 @@ data class Album(
     val starred: Set<Long> = emptySet(),
 )
 
-/** Use [albumId] from [start] until [end], in minutes after midnight. A range may run past midnight. */
+/**
+ * Use [albumId] from [start] until [end], in minutes after midnight, on [days]
+ * (ISO numbers, Monday 1 to Sunday 7; empty is every day). A range may run past
+ * midnight, and that part belongs to the day it started: Friday 22:00–06:00
+ * holds until Saturday 06:00.
+ */
 @Serializable
 data class TimeRange(
     val start: Int,
     val end: Int,
     val albumId: Long,
+    val days: Set<Int> = emptySet(),
 ) {
-    operator fun contains(minute: Int) =
-        when {
-            start == end -> true
-            start < end -> minute in start until end
-            else -> minute >= start || minute < end
+    fun holds(
+        day: Int,
+        minute: Int,
+    ): Boolean {
+        fun on(d: Int) = days.isEmpty() || d in days
+        val yesterday = (day + 5) % 7 + 1
+        return when {
+            start == end -> on(day)
+            start < end -> on(day) && minute in start until end
+            else -> (on(day) && minute >= start) || (on(yesterday) && minute < end)
         }
+    }
 }
 
 /** What the user set for one screen. */
@@ -101,6 +112,8 @@ data class State(
     val lockNow: Progress = Progress(),
     /** Never show the same picture on both screens at once, when the album has another. */
     val distinct: Boolean = true,
+    /** While battery saver is on, skip changes on lock and on a timer; time-of-day albums still switch. */
+    val saverPause: Boolean = false,
     val nextId: Long = 1,
 ) {
     fun rotation(s: Screen) = if (s == Screen.HOME) home else lock
@@ -147,21 +160,22 @@ object Plan {
     // tick that lands seconds before the mark from waiting a whole interval.
     private const val SLACK = 30_000L
 
-    fun minuteOf(
-        t: Long,
-        zone: ZoneId,
-    ) = Instant.ofEpochMilli(t).atZone(zone).let { it.hour * 60 + it.minute }
-
     fun albumAt(
         r: Rotation,
         t: Long,
         zone: ZoneId,
     ): Long? {
-        val m = minuteOf(t, zone)
-        return r.ranges.firstOrNull { m in it }?.albumId ?: r.albumId
+        val at = Instant.ofEpochMilli(t).atZone(zone)
+        val m = at.hour * 60 + at.minute
+        return r.ranges.firstOrNull { it.holds(at.dayOfWeek.value, m) }?.albumId ?: r.albumId
     }
 
-    /** The first moment after [t] at which one of the time ranges starts or ends. */
+    /**
+     * The first moment after [t] at which the time ranges switch to another album,
+     * within the coming week; null if they never do. A range limited to some days
+     * still starts and ends at the same minutes, just not every day, so only those
+     * minutes on the next eight days are tried.
+     */
     fun nextEdge(
         r: Rotation,
         t: Long,
@@ -169,29 +183,33 @@ object Plan {
     ): Long? {
         if (r.ranges.isEmpty()) return null
         val now = Instant.ofEpochMilli(t).atZone(zone)
-        val today = now.toLocalDate()
-
-        fun at(
-            day: LocalDate,
-            m: Int,
-        ) = day.atTime(m / 60, m % 60).atZone(zone)
-        return r.ranges
-            .flatMap { listOf(it.start, it.end) }
-            .distinct()
-            .minOf { m -> at(today, m).takeIf { it.isAfter(now) } ?: at(today.plusDays(1), m) }
-            .toInstant()
-            .toEpochMilli()
+        val minutes = r.ranges.flatMap { listOf(it.start, it.end) }.distinct()
+        return (0L..7L)
+            .flatMap { d ->
+                minutes.map { m ->
+                    now
+                        .toLocalDate()
+                        .plusDays(d)
+                        .atTime(m / 60, m % 60)
+                        .atZone(zone)
+                }
+            }.filter { it.isAfter(now) }
+            .map { it.toInstant().toEpochMilli() }
+            .filter { albumAt(r, it, zone) != albumAt(r, it - MINUTE, zone) }
+            .minOrNull()
     }
 
+    /** [paused]: battery saver is on and the user asked to wait it out, so intervals don't count. */
     fun due(
         st: State,
         s: Screen,
         t: Long,
         zone: ZoneId,
+        paused: Boolean = false,
     ): Boolean {
         val r = st.rotation(s)
         val p = st.progress(s)
-        if (r.everyMinutes > 0 && t >= p.changedAt + r.everyMinutes * MINUTE - SLACK) return true
+        if (!paused && r.everyMinutes > 0 && t >= p.changedAt + r.everyMinutes * MINUTE - SLACK) return true
         return albumAt(r, t, zone) != p.album
     }
 
@@ -199,20 +217,23 @@ object Plan {
      * The next alarm across both screens, or null when nothing is timed. Interval
      * changes don't wake the phone: nobody sees a wallpaper change in a dark
      * pocket, so it waits for the next wake. A time range's edge does, so the new
-     * album is already there when the screen comes on.
+     * album is already there when the screen comes on. While [paused], an
+     * interval tries again one interval later rather than every minute.
      */
     fun nextAlarm(
         st: State,
         t: Long,
         zone: ZoneId,
+        paused: Boolean = false,
     ): Alarm? {
         val alarms =
             st.driven.flatMap { s ->
                 val r = st.rotation(s)
                 val p = st.progress(s)
                 val hasImages = st.album(albumAt(r, t, zone))?.images?.isNotEmpty() == true
+                val every = r.everyMinutes * MINUTE
                 listOfNotNull(
-                    if (r.everyMinutes > 0 && hasImages) Alarm(maxOf(p.changedAt + r.everyMinutes * MINUTE, t + MINUTE), false) else null,
+                    if (r.everyMinutes > 0 && hasImages) Alarm(maxOf(p.changedAt + every, t + if (paused) every else MINUTE), false) else null,
                     nextEdge(r, t, zone)?.let { Alarm(it, true) },
                 )
             }

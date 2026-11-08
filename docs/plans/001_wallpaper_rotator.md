@@ -106,11 +106,10 @@ different one.
   Badal to "Never sleeping apps".
 
 Per-picture framing was added by [002](002_framing.md); the clock shade,
-reordering and favourites by
+reordering, favourites, day-of-week ranges and the battery-saver pause by
 [003](003_shade_order_favourites_days.md).
 
 ## Ideas for later
 
 Live-folder albums (re-scan a folder), a grayscale or blur effect, a crossfade
-(needs the live wallpaper), a "change only while charging" or "not on battery
-saver" rule, and a day-of-week schedule.
+(needs the live wallpaper), and a "change only while charging" rule.

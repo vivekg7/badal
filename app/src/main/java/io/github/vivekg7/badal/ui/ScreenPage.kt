@@ -1,6 +1,7 @@
 package io.github.vivekg7.badal.ui
 
 import android.text.format.DateUtils
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -16,6 +17,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
@@ -54,6 +57,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLocale
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import io.github.vivekg7.badal.Fit
@@ -67,7 +74,10 @@ import io.github.vivekg7.badal.TimeRange
 import io.github.vivekg7.badal.app
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.time.DayOfWeek
+import java.time.Instant
 import java.time.ZoneId
+import java.time.format.TextStyle
 
 private val intervals = listOf(0, 15, 30, 60, 120, 180, 360, 720, 1440)
 
@@ -165,7 +175,7 @@ fun ScreenPage(
                 r.ranges.forEachIndexed { i, range ->
                     ListItem(
                         headlineContent = { Text("${timeLabel(context, range.start)} – ${timeLabel(context, range.end)}") },
-                        supportingContent = { Text(state.album(range.albumId)?.name ?: "Album deleted") },
+                        supportingContent = { Text("${daysLabel(range.days)} · ${state.album(range.albumId)?.name ?: "Album deleted"}") },
                         leadingContent = {
                             Thumb(
                                 state.album(range.albumId)?.images?.firstOrNull(),
@@ -347,6 +357,35 @@ private fun Preview(
     }
 }
 
+/** Seven round toggles, Monday first. */
+@Composable
+private fun Days(
+    days: Set<Int>,
+    onChange: (Set<Int>) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        for (d in 1..7) {
+            val on = d in days
+            Box(
+                Modifier
+                    .size(34.dp)
+                    .clip(CircleShape)
+                    .background(if (on) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant)
+                    .toggleable(on, role = Role.Checkbox) { onChange(if (it) days + d else days - d) }
+                    .semantics { contentDescription = dayName(d) },
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    DayOfWeek.of(d).getDisplayName(TextStyle.NARROW, LocalLocale.current.platformLocale),
+                    color = if (on) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.labelLarge,
+                )
+            }
+        }
+    }
+}
+
 private fun nextLabel(
     context: android.content.Context,
     screen: Screen,
@@ -357,16 +396,30 @@ private fun nextLabel(
     val r = state.rotation(screen)
     val p = state.progress(screen)
     val zone = ZoneId.systemDefault()
+    val paused = context.app.engine.paused(state)
     val parts =
         buildList {
-            if (r.onLock) add("on the next lock")
-            if (r.everyMinutes > 0) {
+            if (r.onLock && !paused) add("on the next lock")
+            if (r.everyMinutes > 0 && !paused) {
                 val at = maxOf(p.changedAt + r.everyMinutes * Plan.MINUTE, now)
-                add("around ${timeLabel(context, Plan.minuteOf(at, zone))}")
+                add("around ${momentLabel(context, at, now)}")
             }
-            Plan.nextEdge(r, now, zone)?.let { add("at ${timeLabel(context, Plan.minuteOf(it, zone))}") }
+            Plan.nextEdge(r, now, zone)?.let { add("at ${momentLabel(context, it, now)}") }
         }
-    return if (parts.isEmpty()) "Changes only when you tap Next" else "Next change " + parts.joinToString(", or ")
+    val next = if (parts.isEmpty()) "Changes only when you tap Next" else "Next change " + parts.joinToString(", or ")
+    return if (paused && (r.onLock || r.everyMinutes > 0)) "Paused while battery saver is on. $next" else next
+}
+
+/** A time, with the day when it isn't today: "21:00", "Mon 09:00". */
+private fun momentLabel(
+    context: android.content.Context,
+    t: Long,
+    now: Long,
+): String {
+    val zone = ZoneId.systemDefault()
+    val at = Instant.ofEpochMilli(t).atZone(zone)
+    val time = timeLabel(context, at.hour * 60 + at.minute)
+    return if (at.toLocalDate() == Instant.ofEpochMilli(now).atZone(zone).toLocalDate()) time else "${dayName(at.dayOfWeek.value)} $time"
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -441,6 +494,7 @@ private fun RangeDialog(
     var start by remember { mutableIntStateOf(22 * 60) }
     var end by remember { mutableIntStateOf(6 * 60) }
     var album by remember { mutableStateOf(state.albums.firstOrNull()) }
+    var days by remember { mutableStateOf((1..7).toSet()) }
     var editing by remember { mutableStateOf<Boolean?>(null) } // true: start, false: end
     var picking by remember { mutableStateOf(false) }
     AlertDialog(
@@ -475,9 +529,20 @@ private fun RangeDialog(
                                 true
                         },
                 )
+                Text(
+                    if (days.isEmpty()) "Choose at least one day" else daysLabel(days),
+                    Modifier.padding(start = 16.dp, top = 8.dp),
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+                Days(days, { days = it }, Modifier.padding(horizontal = 8.dp, vertical = 8.dp))
             }
         },
-        confirmButton = { TextButton({ album?.let { onDone(TimeRange(start, end, it.id)) } }, enabled = album != null) { Text("Add") } },
+        confirmButton = {
+            TextButton(
+                { album?.let { onDone(TimeRange(start, end, it.id, if (days.size == 7) emptySet() else days)) } },
+                enabled = album != null && days.isNotEmpty(),
+            ) { Text("Add") }
+        },
         dismissButton = { TextButton(onDismiss) { Text("Cancel") } },
     )
     editing?.let { isStart ->

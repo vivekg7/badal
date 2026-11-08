@@ -60,6 +60,19 @@ fun SettingsPage(state: State) {
             },
         )
 
+        ListItem(
+            headlineContent = { Text("Pause on battery saver") },
+            supportingContent = { Text("While it's on, skip changes on lock and on a timer. Albums for set hours still switch.") },
+            trailingContent = {
+                Switch(state.saverPause, { on ->
+                    app.scope.launch {
+                        app.store.update { it.copy(saverPause = on) }
+                        app.engine.settle()
+                    }
+                })
+            },
+        )
+
         Section("Running in the background") {
             ListItem(
                 headlineContent = { Text("Battery") },

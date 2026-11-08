@@ -5,6 +5,7 @@ import android.app.PendingIntent
 import android.app.WallpaperManager
 import android.content.Context
 import android.content.Intent
+import android.os.PowerManager
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -33,10 +34,10 @@ class Engine(
     val busy: StateFlow<Boolean> = drawing
 
     /** The screen went off: change the screens that change on lock. */
-    suspend fun screenOff() = change { st -> st.driven.filter { st.rotation(it).onLock } }
+    suspend fun screenOff() = change { st -> if (paused(st)) emptyList() else st.driven.filter { st.rotation(it).onLock } }
 
     /** The alarm fired: change whatever is due. */
-    suspend fun tick() = change { st -> st.driven.filter { Plan.due(st, it, now(), zone) } }
+    suspend fun tick() = change { st -> st.driven.filter { Plan.due(st, it, now(), zone, paused(st)) } }
 
     suspend fun next(screens: Collection<Screen>) = change { screens }
 
@@ -161,12 +162,15 @@ class Engine(
                 Intent(context, AlarmReceiver::class.java),
                 PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
             )
-        val alarm = Plan.nextAlarm(st, now(), zone) ?: return am.cancel(pi)
+        val alarm = Plan.nextAlarm(st, now(), zone, paused(st)) ?: return am.cancel(pi)
         val type = if (alarm.wake) AlarmManager.RTC_WAKEUP else AlarmManager.RTC
         // Exact needs the user's grant (Settings tab); without it Android may
         // deliver a few minutes late, which is fine for a wallpaper.
         if (am.canScheduleExactAlarms()) am.setExactAndAllowWhileIdle(type, alarm.at, pi) else am.setAndAllowWhileIdle(type, alarm.at, pi)
     }
+
+    /** Battery saver is on, and the user asked Badal to wait it out. */
+    fun paused(st: State) = st.saverPause && context.getSystemService(PowerManager::class.java).isPowerSaveMode
 
     private fun now() = System.currentTimeMillis()
 }

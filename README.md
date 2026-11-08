@@ -8,7 +8,8 @@ and the lock screen. _Badal_ (बदल) means "change".
 - **Change each time the screen locks**, so every unlock shows a new picture.
 - **Change every _n_ minutes**: presets from 15 minutes to a day, or any
   number.
-- **Albums by time of day**, e.g. dark pictures from 22:00 to 06:00.
+- **Albums by time of day**, e.g. dark pictures from 22:00 to 06:00, every day
+  or only on chosen days.
 - **Shuffle** (no repeats until every picture has shown) **or in order**, with
   Previous and Next. **Drag to reorder** an album; **star favourites** to show
   them twice as often in Shuffle.
@@ -20,6 +21,8 @@ and the lock screen. _Badal_ (बदल) means "change".
 - **Frame each picture for each screen**: drag and pinch it into place, with
   a guide showing where the lock-screen clock and the dock sit
   ([plan 002](docs/plans/002_framing.md)).
+- **Pause on battery saver**, if you like: no changes on lock or on a timer
+  while it's on.
 - **Quick Settings tile** and **launcher shortcuts** for Next.
 - Pictures are copied into the app, so gallery clean-ups don't break an
   album. No internet permission.

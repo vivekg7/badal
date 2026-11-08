@@ -39,8 +39,11 @@ import io.github.vivekg7.badal.Album
 import io.github.vivekg7.badal.app
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.time.DayOfWeek
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
+import java.time.format.TextStyle
+import java.util.Locale
 
 /** Decoded thumbnails, by picture id; 48 MB holds about seventy. */
 private val thumbs =
@@ -112,6 +115,18 @@ fun timeLabel(
     val pattern = if (DateFormat.is24HourFormat(context)) "HH:mm" else "h:mm a"
     return LocalTime.of(minute / 60, minute % 60).format(DateTimeFormatter.ofPattern(pattern))
 }
+
+/** A day by its ISO number, Monday 1: "Mon". */
+fun dayName(d: Int): String = DayOfWeek.of(d).getDisplayName(TextStyle.SHORT, Locale.getDefault())
+
+/** Days a time range holds on, empty meaning all of them: "Every day", "Weekdays", "Sat, Sun". */
+fun daysLabel(days: Set<Int>): String =
+    when (days) {
+        emptySet<Int>(), (1..7).toSet() -> "Every day"
+        (1..5).toSet() -> "Weekdays"
+        setOf(6, 7) -> "Weekends"
+        else -> days.sorted().joinToString(", ", transform = ::dayName)
+    }
 
 @Composable
 fun AlbumPicker(
