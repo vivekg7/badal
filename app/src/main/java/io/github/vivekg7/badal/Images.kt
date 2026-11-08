@@ -40,17 +40,23 @@ class Images(
     ): Boolean =
         try {
             context.contentResolver.openInputStream(uri)!!.use { input -> file(id).outputStream().use { input.copyTo(it) } }
-            val small =
-                ImageDecoder.decodeBitmap(ImageDecoder.createSource(file(id))) { d, info, _ ->
-                    d.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
-                    d.setTargetSampleSize(max(1, min(info.size.width, info.size.height) / THUMB))
-                }
+            val small = sized(id, THUMB)
             thumb(id).outputStream().use { small.compress(Bitmap.CompressFormat.JPEG, 85, it) }
             true
         } catch (e: Exception) {
             Log.w("Badal", "can't add $uri", e)
             delete(id)
             false
+        }
+
+    /** The picture with its short side at least [side] pixels, or as large as it is; for the thumbnail and the framing editor. */
+    fun sized(
+        id: Long,
+        side: Int,
+    ): Bitmap =
+        ImageDecoder.decodeBitmap(ImageDecoder.createSource(file(id))) { d, info, _ ->
+            d.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
+            d.setTargetSampleSize(max(1, min(info.size.width, info.size.height) / side))
         }
 
     fun delete(id: Long) {
@@ -83,31 +89,31 @@ class Images(
         return min(mode.physicalWidth, mode.physicalHeight) to max(mode.physicalWidth, mode.physicalHeight)
     }
 
-    /** The picture as it will look on a [w]×[h] screen: cropped or fitted, then dimmed. */
+    /** The picture as it will look on a [w]×[h] screen: placed by [frame] over a blurred copy where it leaves gaps, then dimmed. */
     fun render(
         id: Long,
         w: Int,
         h: Int,
-        fit: Fit,
+        frame: Frame,
         dim: Int,
     ): Bitmap {
         val src =
             ImageDecoder.decodeBitmap(ImageDecoder.createSource(file(id))) { d, info, _ ->
                 d.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
                 // A 50 MP camera photo is 200 MB decoded. Shrink while decoding, but
-                // never below the screen: the worst of both orientations is used,
-                // because the size here may be before the EXIF rotation.
+                // never below what the screen shows of it, zoom included: the worst
+                // of both orientations is used, because the size here may be before
+                // the EXIF rotation.
                 val iw = info.size.width
                 val ih = info.size.height
-                d.setTargetSampleSize(max(1, minOf(iw / w, ih / h, iw / h, ih / w)))
+                d.setTargetSampleSize(max(1, (minOf(iw / w, ih / h, iw / h, ih / w) / max(1f, frame.zoom)).toInt()))
             }
         val out = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(out)
         val paint = Paint(Paint.FILTER_BITMAP_FLAG)
-        val cover = max(w / src.width.toFloat(), h / src.height.toFloat())
-        if (fit == Fit.FILL) {
-            canvas.drawBitmap(src, centred(src, w, h, cover), paint)
-        } else {
+        val p = Framing.place(src.width, src.height, w.toFloat(), h.toFloat(), frame)
+        if (Framing.gaps(p, src.width, src.height, w.toFloat(), h.toFloat())) {
+            val cover = max(w / src.width.toFloat(), h / src.height.toFloat())
             val tiny =
                 blurred(
                     Bitmap.createScaledBitmap(
@@ -119,9 +125,16 @@ class Images(
                 )
             canvas.drawBitmap(tiny, centred(tiny, w, h, max(w / tiny.width.toFloat(), h / tiny.height.toFloat())), paint)
             canvas.drawColor(Color.argb(60, 0, 0, 0))
-            canvas.drawBitmap(src, centred(src, w, h, min(w / src.width.toFloat(), h / src.height.toFloat())), paint)
             tiny.recycle()
         }
+        canvas.drawBitmap(
+            src,
+            Matrix().apply {
+                setScale(p.scale, p.scale)
+                postTranslate(p.left, p.top)
+            },
+            paint,
+        )
         if (dim > 0) canvas.drawColor(Color.argb(dim * 255 / 100, 0, 0, 0))
         src.recycle()
         return out

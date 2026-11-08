@@ -36,7 +36,8 @@ class Library(
     suspend fun delete(id: Long) {
         val album = store.state.value.album(id) ?: return
         store.update { st ->
-            fun Rotation.without() = copy(albumId = albumId.takeIf { it != id }, ranges = ranges.filter { it.albumId != id })
+            fun Rotation.without() =
+                copy(albumId = albumId.takeIf { it != id }, ranges = ranges.filter { it.albumId != id }, frames = frames - album.images.toSet())
             st.copy(albums = st.albums.filter { it.id != id }, home = st.home.without(), lock = st.lock.without())
         }
         withContext(Dispatchers.IO) { album.images.forEach(images::delete) }
@@ -78,7 +79,13 @@ class Library(
         albumId: Long,
         ids: Set<Long>,
     ) {
-        store.update { st -> st.copy(albums = st.albums.map { if (it.id == albumId) it.copy(images = it.images - ids) else it }) }
+        store.update { st ->
+            st.copy(
+                albums = st.albums.map { if (it.id == albumId) it.copy(images = it.images - ids) else it },
+                home = st.home.copy(frames = st.home.frames - ids),
+                lock = st.lock.copy(frames = st.lock.frames - ids),
+            )
+        }
         withContext(Dispatchers.IO) { ids.forEach(images::delete) }
         engine.settle()
     }

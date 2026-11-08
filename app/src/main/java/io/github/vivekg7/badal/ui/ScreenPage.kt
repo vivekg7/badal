@@ -12,12 +12,14 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilledTonalIconButton
@@ -38,22 +40,24 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimePicker
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import io.github.vivekg7.badal.Fit
+import io.github.vivekg7.badal.Framing
 import io.github.vivekg7.badal.Order
 import io.github.vivekg7.badal.Plan
 import io.github.vivekg7.badal.Rotation
@@ -61,6 +65,7 @@ import io.github.vivekg7.badal.Screen
 import io.github.vivekg7.badal.State
 import io.github.vivekg7.badal.TimeRange
 import io.github.vivekg7.badal.app
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.time.ZoneId
 
@@ -72,6 +77,7 @@ fun ScreenPage(
     screen: Screen,
     state: State,
     toAlbums: () -> Unit,
+    onFrame: (Long) -> Unit,
 ) {
     val context = LocalContext.current
     val app = context.app
@@ -85,7 +91,7 @@ fun ScreenPage(
     var addingRange by remember { mutableStateOf(false) }
 
     Column(Modifier.verticalScroll(rememberScrollState()).padding(bottom = 24.dp)) {
-        Preview(screen, state, follows)
+        Preview(screen, state, follows, onFrame)
 
         ListItem(
             headlineContent = { Text("Change the $name") },
@@ -196,6 +202,16 @@ fun ScreenPage(
                 listOf("Fill the screen" to Fit.FILL, "Whole picture" to Fit.WHOLE),
                 r.fit,
             ) { f -> edit { it.copy(fit = f) } }
+            Text(
+                if (r.frames.isEmpty()) {
+                    "Or frame a picture yourself: tap it above, or in its album."
+                } else {
+                    "For all but the ${plural(r.frames.size, "picture")} you framed yourself."
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 16.dp),
+            )
             // The slider moves freely and only sets the wallpaper when let go.
             var dim by remember(r.dim) { mutableFloatStateOf(r.dim.toFloat()) }
             ListItem(
@@ -234,26 +250,38 @@ fun ScreenPage(
     }
 }
 
-/** The current picture in a phone-shaped frame, with Previous and Next. */
+/** The current picture as the screen shows it, with Previous, Next and Frame. */
 @Composable
 private fun Preview(
     screen: Screen,
     state: State,
     follows: Boolean,
+    onFrame: (Long) -> Unit,
 ) {
     val context = LocalContext.current
     val app = context.app
     val r = state.rotation(screen)
     val p = state.progress(screen)
+    val id = p.current
+    val busy by app.engine.busy.collectAsState()
+    val (sw, sh) = remember { app.images.screen() }
+    // "Changed 5 minutes ago" goes stale while the page stays open; re-read the clock now and then.
+    val now by produceState(System.currentTimeMillis()) {
+        while (true) {
+            delay(30_000)
+            value = System.currentTimeMillis()
+        }
+    }
     Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-        val frame = Modifier.width(132.dp).aspectRatio(9f / 19.5f).clip(MaterialTheme.shapes.large)
-        if (r.fit == Fit.WHOLE) {
-            Box(frame) {
-                Thumb(p.current, Modifier.fillMaxSize().blur(12.dp))
-                Thumb(p.current, Modifier.fillMaxSize(), dim = r.dim, fit = ContentScale.Fit)
-            }
-        } else {
-            Thumb(p.current, frame, dim = r.dim)
+        Box(
+            Modifier
+                .width(132.dp)
+                .aspectRatio(sw / sh.toFloat())
+                .clip(MaterialTheme.shapes.large)
+                .clickable(enabled = id != null) { id?.let(onFrame) },
+        ) {
+            Framed(rememberThumb(id), id?.let { r.frame(it) } ?: Framing.of(r.fit), r.dim, Modifier.fillMaxSize())
+            if (busy) CircularProgressIndicator(Modifier.align(Alignment.Center).size(32.dp), color = Color.White)
         }
         Column(Modifier.padding(start = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(
@@ -262,34 +290,38 @@ private fun Preview(
                         "Not changed by Badal"
                     }
 
-                    p.current == null -> {
+                    id == null -> {
                         "No picture yet"
                     }
 
-                    System.currentTimeMillis() - p.changedAt < Plan.MINUTE -> {
+                    now - p.changedAt < Plan.MINUTE -> {
                         "Changed just now"
                     }
 
                     else -> {
-                        "Changed " +
-                            DateUtils.getRelativeTimeSpanString(p.changedAt, System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS)
+                        "Changed " + DateUtils.getRelativeTimeSpanString(p.changedAt, now, DateUtils.MINUTE_IN_MILLIS)
                     }
                 },
                 style = MaterialTheme.typography.titleMedium,
             )
             if (r.enabled) {
                 Text(
-                    nextLabel(context, screen, state),
+                    nextLabel(context, screen, state, now),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            if (r.enabled && !follows) {
+            if (r.enabled) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilledTonalIconButton({ app.scope.launch { app.engine.previous(screen) } }, enabled = p.history.isNotEmpty()) {
-                        Icon(Icons.Previous, "Previous")
+                    if (!follows) {
+                        FilledTonalIconButton({ app.scope.launch { app.engine.previous(screen) } }, enabled = p.history.isNotEmpty() && !busy) {
+                            Icon(Icons.Previous, "Previous")
+                        }
+                        FilledIconButton({ app.scope.launch { app.engine.next(listOf(screen)) } }, enabled = !busy) {
+                            Icon(Icons.Next, "Next")
+                        }
                     }
-                    FilledIconButton({ app.scope.launch { app.engine.next(listOf(screen)) } }) { Icon(Icons.Next, "Next") }
+                    if (id != null) FilledTonalIconButton({ onFrame(id) }) { Icon(Icons.Crop, "Frame this picture") }
                 }
             }
         }
@@ -300,12 +332,12 @@ private fun nextLabel(
     context: android.content.Context,
     screen: Screen,
     state: State,
+    now: Long,
 ): String {
     if (screen == Screen.LOCK && state.follows) return "Follows the home screen"
     val r = state.rotation(screen)
     val p = state.progress(screen)
     val zone = ZoneId.systemDefault()
-    val now = System.currentTimeMillis()
     val parts =
         buildList {
             if (r.onLock) add("on the next lock")

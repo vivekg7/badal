@@ -1,7 +1,8 @@
 # 001 — A wallpaper rotator for home and lock screens
 
-Status: built (v0.1.0, 2026-11-08). Tested on the Android 17 emulator; not
-yet on a Samsung phone.
+Status: built (v0.1.0, 2026-11-08). Tested on the Android 17 emulator, and on a
+Galaxy A35 (One UI, Android 17): there a `FLAG_LOCK` bitmap replaces Samsung's
+own layered lock-screen wallpaper.
 
 ## Problem
 
@@ -104,9 +105,10 @@ different one.
 - If the phone kills the watcher anyway (Device care, Sleeping apps), add
   Badal to "Never sleeping apps".
 
+Per-picture framing was added by [002](002_framing.md).
+
 ## Ideas for later
 
-Live-folder albums (re-scan a folder), per-picture focus point for cropping,
-a grayscale or blur effect, a crossfade (needs the live wallpaper), a
+Live-folder albums (re-scan a folder), a grayscale or blur effect, a crossfade (needs the live wallpaper), a
 "change only while charging" or "not on battery saver" rule, a day-of-week
 schedule, and weighted favourites.

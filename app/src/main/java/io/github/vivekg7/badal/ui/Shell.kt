@@ -39,10 +39,18 @@ fun Shell() {
         .collectAsState()
     var tab by rememberSaveable { mutableIntStateOf(0) }
     var open by rememberSaveable { mutableStateOf<Long?>(null) }
+    var framing by rememberSaveable { mutableStateOf<Pair<Long, Screen>?>(null) }
+    framing?.let { (id, screen) ->
+        if (state.albums.any { id in it.images }) {
+            BackHandler { framing = null }
+            FramePage(id, screen, state, onClose = { framing = null })
+            return
+        }
+    }
     val album = state.album(open)
     if (album != null) {
         BackHandler { open = null }
-        AlbumPage(album, state, onBack = { open = null })
+        AlbumPage(album, state, onBack = { open = null }, onFrame = { framing = it to Screen.HOME })
         return
     }
     Scaffold(
@@ -57,8 +65,8 @@ fun Shell() {
     ) { pad ->
         Box(Modifier.padding(pad).consumeWindowInsets(pad)) {
             when (tab) {
-                0 -> ScreenPage(Screen.HOME, state, toAlbums = { tab = 2 })
-                1 -> ScreenPage(Screen.LOCK, state, toAlbums = { tab = 2 })
+                0 -> ScreenPage(Screen.HOME, state, toAlbums = { tab = 2 }, onFrame = { framing = it to Screen.HOME })
+                1 -> ScreenPage(Screen.LOCK, state, toAlbums = { tab = 2 }, onFrame = { framing = it to Screen.LOCK })
                 2 -> AlbumsPage(state, onOpen = { open = it })
                 else -> SettingsPage(state)
             }

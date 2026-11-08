@@ -10,6 +10,9 @@ Read the plans before proposing a change; rejected ideas are listed there.
 - **Rotation rules live in `Plan` (Model.kt) and stay pure**: no Android
   types, so `PlanTest` covers them on the JVM. A new trigger or order is a
   change to `Plan` plus a test, then wiring in `Engine`.
+- **Framing geometry lives in `Framing` (Frame.kt) and stays pure.** The
+  renderer and every in-app preview place pictures through it, so a preview
+  can't drift from the wallpaper (plan 002).
 - **Set home and lock with separate `setBitmap` calls**, never both flags at
   once (plan 001).
 - **The engine writes only `homeNow` / `lockNow`**; settings and albums are

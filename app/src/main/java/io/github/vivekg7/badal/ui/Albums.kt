@@ -121,6 +121,7 @@ fun AlbumPage(
     album: Album,
     state: State,
     onBack: () -> Unit,
+    onFrame: (Long) -> Unit,
 ) {
     val context = LocalContext.current
     val app = context.app
@@ -273,6 +274,15 @@ fun AlbumPage(
                     ListItem(
                         headlineContent = { Text("On both") },
                         modifier = Modifier.clickable { show(listOf(Screen.HOME, Screen.LOCK)) },
+                    )
+                    ListItem(
+                        headlineContent = { Text("Frame it…") },
+                        supportingContent = { Text("Choose what each screen shows of it") },
+                        modifier =
+                            Modifier.clickable {
+                                tapped = null
+                                onFrame(id)
+                            },
                     )
                 }
             },

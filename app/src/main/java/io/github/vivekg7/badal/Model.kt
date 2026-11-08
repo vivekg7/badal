@@ -59,10 +59,21 @@ data class Rotation(
     val everyMinutes: Int = 0,
     /** Time-of-day albums; the first range that holds the time wins over [albumId]. */
     val ranges: List<TimeRange> = emptyList(),
+    /** For pictures without a frame of their own in [frames]. */
     val fit: Fit = Fit.FILL,
     /** Darken by this many percent, so a busy picture does not hide the clock or icons. */
     val dim: Int = 0,
-)
+    /** Pictures the user framed by hand for this screen, by id. */
+    val frames: Map<Long, Frame> = emptyMap(),
+) {
+    fun frame(id: Long) = frames[id] ?: Framing.of(fit)
+
+    /** With [id] framed as [f]; null puts it back on [fit]. */
+    fun framed(
+        id: Long,
+        f: Frame?,
+    ) = copy(frames = if (f == null) frames - id else frames + (id to f))
+}
 
 /** Where one screen is in its album. */
 @Serializable

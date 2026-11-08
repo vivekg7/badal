@@ -51,31 +51,42 @@ private val thumbs =
         ) = value.width * value.height * 4
     }
 
+/**
+ * A picture's thumbnail, loaded off the main thread. When [id] changes, the old
+ * thumbnail stays until the new one is ready, so the picture swaps without a
+ * blank frame. (produceState keeps its value across keys: the loader must
+ * always replace it, never only fill it when empty.)
+ */
+@Composable
+fun rememberThumb(id: Long?): ImageBitmap? {
+    val context = LocalContext.current
+    val bitmap by produceState(id?.let { thumbs.get(it) }, id) {
+        value =
+            id?.let {
+                thumbs.get(it) ?: withContext(Dispatchers.IO) {
+                    BitmapFactory
+                        .decodeFile(
+                            context.app.images
+                                .thumb(it)
+                                .path,
+                        )?.asImageBitmap()
+                        ?.also { b -> thumbs.put(it, b) }
+                }
+            }
+    }
+    return bitmap
+}
+
 /** A picture's thumbnail, cropped to fill [modifier]; [dim] darkens it like the wallpaper. */
 @Composable
 fun Thumb(
     id: Long?,
     modifier: Modifier = Modifier,
     dim: Int = 0,
-    fit: ContentScale = ContentScale.Crop,
 ) {
-    val context = LocalContext.current
-    val bitmap by produceState(id?.let { thumbs.get(it) }, id) {
-        if (value == null && id != null) {
-            value =
-                withContext(Dispatchers.IO) {
-                    BitmapFactory
-                        .decodeFile(
-                            context.app.images
-                                .thumb(id)
-                                .path,
-                        )?.asImageBitmap()
-                        ?.also { thumbs.put(id, it) }
-                }
-        }
-    }
+    val bitmap = rememberThumb(id)
     Box(modifier.background(MaterialTheme.colorScheme.surfaceVariant)) {
-        bitmap?.let { Image(it, null, Modifier.fillMaxSize(), contentScale = fit) }
+        bitmap?.let { Image(it, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop) }
         if (dim > 0) Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = dim / 100f)))
     }
 }

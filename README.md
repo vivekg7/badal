@@ -14,12 +14,14 @@ and the lock screen. _Badal_ (बदल) means "change".
 - **Different pictures on each screen**, when both use the same album.
 - **Fill or fit**: crop to fill the screen, or show the whole picture over a
   blurred copy. **Darken** up to 70% so the clock and icons stay readable.
+- **Frame each picture for each screen**: drag and pinch it into place, with
+  a guide showing where the lock-screen clock and the dock sit
+  ([plan 002](docs/plans/002_framing.md)).
 - **Quick Settings tile** and **launcher shortcuts** for Next.
 - Pictures are copied into the app, so gallery clean-ups don't break an
   album. No internet permission.
 
-Why it is built this way, and what was rejected:
-[docs/plans/001_wallpaper_rotator.md](docs/plans/001_wallpaper_rotator.md).
+Why it is built this way, and what was rejected: [docs/plans/](docs/plans/).
 
 ## Samsung setup
 
@@ -30,6 +32,9 @@ For **change on lock** to keep working, Badal must be allowed to run:
    limits → Never sleeping apps → add Badal.
 3. Turn off **Dynamic lock screen** (Lock screen → Wallpaper services), or it
    replaces Badal's lock-screen picture.
+
+The lock-screen clock's place and style are One UI's to set (long-press the
+lock screen); no app can change them. Frame pictures around it instead.
 
 ## Build
 

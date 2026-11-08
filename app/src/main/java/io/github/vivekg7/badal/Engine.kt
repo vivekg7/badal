@@ -7,6 +7,8 @@ import android.content.Context
 import android.content.Intent
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -25,6 +27,10 @@ class Engine(
 ) {
     private val mutex = Mutex()
     private val zone get() = ZoneId.systemDefault()
+    private val drawing = MutableStateFlow(false)
+
+    /** True while a wallpaper is being drawn and set, which takes a second or so. */
+    val busy: StateFlow<Boolean> = drawing
 
     /** The screen went off: change the screens that change on lock. */
     suspend fun screenOff() = change { st -> st.driven.filter { st.rotation(it).onLock } }
@@ -58,11 +64,27 @@ class Engine(
         change: (Rotation) -> Rotation,
     ) {
         val before = store.state.value.rotation(s)
-        val after = store.update { it.with(s, change(it.rotation(s))) }.rotation(s)
+        val st = store.update { it.with(s, change(it.rotation(s))) }
+        val after = st.rotation(s)
+        val shown = st.progress(s).current
         val redraw =
             after.enabled &&
-                (!before.enabled || after.fit != before.fit || after.dim != before.dim || after.sameAsHome != before.sameAsHome)
+                (
+                    !before.enabled ||
+                        after.dim != before.dim ||
+                        after.sameAsHome != before.sameAsHome ||
+                        (shown != null && after.frame(shown) != before.frame(shown))
+                )
         settle(if (redraw) setOf(s) else emptySet())
+    }
+
+    /** Frame picture [id] on each screen in [frames] (null: back to the screen's fit), and redraw the screens showing it. */
+    suspend fun frame(
+        id: Long,
+        frames: Map<Screen, Frame?>,
+    ) {
+        val st = store.update { st -> frames.entries.fold(st) { acc, (s, f) -> acc.with(s, acc.rotation(s).framed(id, f)) } }
+        settle(frames.keys.filter { st.rotation(it).enabled && st.progress(it).current == id }.toSet())
     }
 
     /**
@@ -100,24 +122,32 @@ class Engine(
                 val touched = s in force || (after.rotation(s).enabled && id != before.progress(s).current)
                 if (touched) s to id else null
             }
-        withContext(Dispatchers.IO) {
-            val (w, h) = images.screen()
-            val drawn = mutableMapOf<Triple<Long, Fit, Int>, android.graphics.Bitmap>()
-            for ((s, id) in wanted) {
-                val r = after.rotation(s)
-                try {
-                    // Set each screen on its own, never both flags at once: that makes
-                    // the lock screen follow the home screen from then on.
-                    val bmp = drawn.getOrPut(Triple(id, r.fit, r.dim)) { images.render(id, w, h, r.fit, r.dim) }
-                    val flag = if (s == Screen.HOME) WallpaperManager.FLAG_SYSTEM else WallpaperManager.FLAG_LOCK
-                    WallpaperManager.getInstance(context).setBitmap(bmp, null, true, flag)
-                } catch (e: Exception) {
-                    Log.e("Badal", "can't set $s to $id", e)
+        drawing.value = wanted.isNotEmpty()
+        // Busy until the new progress is saved, so the app never shows the old picture as done.
+        val saved =
+            try {
+                withContext(Dispatchers.IO) {
+                    val (w, h) = images.screen()
+                    val drawn = mutableMapOf<Triple<Long, Frame, Int>, android.graphics.Bitmap>()
+                    for ((s, id) in wanted) {
+                        val r = after.rotation(s)
+                        try {
+                            // Set each screen on its own, never both flags at once: that makes
+                            // the lock screen follow the home screen from then on.
+                            val frame = r.frame(id)
+                            val bmp = drawn.getOrPut(Triple(id, frame, r.dim)) { images.render(id, w, h, frame, r.dim) }
+                            val flag = if (s == Screen.HOME) WallpaperManager.FLAG_SYSTEM else WallpaperManager.FLAG_LOCK
+                            WallpaperManager.getInstance(context).setBitmap(bmp, null, true, flag)
+                        } catch (e: Exception) {
+                            Log.e("Badal", "can't set $s to $id", e)
+                        }
+                    }
+                    drawn.values.forEach { it.recycle() }
                 }
+                store.update { it.copy(homeNow = after.homeNow, lockNow = after.lockNow) }
+            } finally {
+                drawing.value = false
             }
-            drawn.values.forEach { it.recycle() }
-        }
-        val saved = store.update { it.copy(homeNow = after.homeNow, lockNow = after.lockNow) }
         schedule(saved)
     }
 
