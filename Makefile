@@ -7,7 +7,7 @@ STUDIO_JBR := /Applications/Android Studio.app/Contents/jbr/Contents/Home
 export JAVA_HOME ?= $(shell [ -d "$(STUDIO_JBR)" ] && echo "$(STUDIO_JBR)")
 GRADLE = ./gradlew -q
 
-.PHONY: help fmt lint test check debug install release
+.PHONY: help fmt lint test check debug install release archive
 
 help:
 	@echo 'fmt      rewrite files: ktlint on Kotlin, prettier on Markdown -- the only target that edits anything'
@@ -16,7 +16,8 @@ help:
 	@echo 'check    lint test'
 	@echo 'debug    build the debug APK (io.github.vivekg7.badal.debug, beside a release install)'
 	@echo 'install  build the debug APK and install it on ANDROID_SERIAL'
-	@echo 'release  build the release APK, unsigned, to try the minified build'
+	@echo 'release  build the minified release APK, signed when local/keystore.properties exists'
+	@echo 'archive  build, verify and keep the signed release APK in local/releases/'
 
 fmt:
 	$(GRADLE) ktlintFormat
@@ -42,3 +43,6 @@ install:
 release:
 	$(GRADLE) :app:assembleRelease
 	@ls -l app/build/outputs/apk/release/
+
+archive:
+	./scripts/archive-apk.sh

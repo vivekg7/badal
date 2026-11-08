@@ -39,8 +39,41 @@ with only Android Studio, the Makefile uses Studio's bundled one.
 ```sh
 make check                              # ktlint, Android lint, unit tests
 ANDROID_SERIAL=emulator-5554 make install
-make release                            # minified APK, unsigned
+make release                            # minified APK, signed if the key is set up
+make archive                            # build, verify, keep it in local/releases/
 ```
+
+### Signing
+
+`assembleRelease` signs the APK when `local/keystore.properties` exists:
+
+```properties
+storeFile=local/badal-release.jks
+storePassword=…
+keyAlias=badal
+keyPassword=…
+```
+
+`local/` is gitignored, so neither the key nor its password reaches the
+repository. Without the file, release still builds, unsigned.
+
+**The key cannot be recovered.** Lose it and no installed copy of Badal can be
+updated, because Android refuses an update signed by a different key. Keep a
+backup off this machine.
+
+### Archiving a release
+
+`make archive` (`scripts/archive-apk.sh`) builds the release APK and copies it
+into `local/releases/v<version>/` as `badal-v<version>.apk`, with a `.sha256`
+and the R8 `mapping.txt` that turns a minified stack trace from that build back
+into names. The version is read from the built APK, so the name cannot disagree
+with what shipped.
+
+It is not wired into `assembleRelease`, so a build made while working cannot
+overwrite an archived release. The script also refuses an unsigned APK,
+archives a dirty tree as `v<version>-dirty-g<commit>/`, and never replaces an
+existing archive without `--force`. Bump `versionCode` and `versionName` in
+`app/build.gradle.kts` for each release.
 
 ## Credits
 
