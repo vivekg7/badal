@@ -24,11 +24,16 @@ and the lock screen. _Badal_ (बदल) means "change".
 - **Crossfade** on the home screen, if you like: Badal becomes the live
   wallpaper and fades to each new picture
   ([plan 004](docs/plans/004_crossfade.md)).
+- **Make your own abstract wallpapers**: plain colours, gradients and mesh
+  gradients, with 56 patterns over them (dots in grids, rings, rays
+  and spirals; stripes, waves, contours; tiles, Bauhaus, marble…). Start from
+  any of 280 premade designs, change colours, size and weight, and edit
+  them again later ([plan 005](docs/plans/005_designs.md)).
 - **Pause on battery saver**, if you like: no changes on lock or on a timer
   while it's on.
 - **Quick Settings tile** and **launcher shortcuts** for Next.
 - Pictures are copied into the app, so gallery clean-ups don't break an
-  album. No internet permission.
+  album; designs are drawn into it at the screen's size. No internet permission.
 
 Why it is built this way, and what was rejected: [docs/plans/](docs/plans/).
 

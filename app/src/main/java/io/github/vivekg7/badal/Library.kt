@@ -69,19 +69,66 @@ class Library(
     suspend fun add(
         albumId: Long,
         uris: List<Uri>,
+    ): Int = fill(albumId, uris.size) { i, id -> images.add(uris[i], id) }
+
+    /** Draws [designs] into the album, in order (plan 005). */
+    suspend fun make(
+        albumId: Long,
+        designs: List<Design>,
+    ): Int = fill(albumId, designs.size) { i, id -> images.make(designs[i], id) }
+
+    /**
+     * Draws [d] in place of picture [old]: under a new id, so an id always names
+     * the same pixels and nothing that compares ids is fooled. A screen showing
+     * the old one shows the new one.
+     */
+    suspend fun redesign(
+        albumId: Long,
+        old: Long,
+        d: Design,
+    ) {
+        var id = 0L
+        store.update {
+            id = it.nextId
+            it.copy(nextId = id + 1)
+        }
+        progress.value = 0 to 1
+        val made = withContext(Dispatchers.IO) { images.make(d, id) }
+        progress.value = null
+        if (!made) return
+        val st =
+            store.update { st ->
+                fun Album.swapped() = copy(images = images.map { if (it == old) id else it }, starred = if (old in starred) starred - old + id else starred)
+                st.copy(
+                    albums = st.albums.map { if (it.id == albumId) it.swapped() else it },
+                    home = st.home.copy(frames = st.home.frames - old),
+                    lock = st.lock.copy(frames = st.lock.frames - old),
+                )
+            }
+        val showing = Screen.entries.filter { st.progress(it).current == old }
+        if (showing.isNotEmpty()) engine.show(id, showing)
+        withContext(Dispatchers.IO) { images.delete(old) }
+        engine.settle()
+    }
+
+    /** Puts [n] new pictures into the album, each made by [make] under its id; returns how many were made. */
+    private suspend fun fill(
+        albumId: Long,
+        n: Int,
+        make: (Int, Long) -> Boolean,
     ): Int {
-        if (uris.isEmpty()) return 0
+        if (n == 0) return 0
         var first = 0L
         store.update {
             first = it.nextId
-            it.copy(nextId = first + uris.size)
+            it.copy(nextId = first + n)
         }
         val added = mutableListOf<Long>()
-        progress.value = 0 to uris.size
+        progress.value = 0 to n
         withContext(Dispatchers.IO) {
-            uris.forEachIndexed { i, uri ->
-                if (images.add(uri, first + i)) added += first + i
-                progress.value = i + 1 to uris.size
+            for (i in 0 until n) {
+                if (make(i, first + i)) added += first + i
+                progress.value = i + 1 to n
             }
         }
         store.update { st -> st.copy(albums = st.albums.map { if (it.id == albumId) it.copy(images = it.images + added) else it }) }

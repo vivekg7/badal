@@ -16,6 +16,9 @@ Read the plans before proposing a change; rejected ideas are listed there.
 - **Set home and lock with separate `setBitmap` calls**, never both flags at
   once (plan 001). While Badal is the live wallpaper (`Engine.live`), never
   set the home screen at all: a still wallpaper replaces it (plan 004).
+- **An id always names the same pixels.** A design (plan 005) is drawn once
+  into `img/<id>`; editing it adds a new picture in its place
+  (`Library.redesign`), never redraws the old id.
 - **The engine writes only `homeNow` / `lockNow`**; settings and albums are
   changed through `Engine.edit` and `Library`, each of which ends in
   `Engine.settle()` so the wallpapers, the alarm and the lock watcher follow.

@@ -14,6 +14,7 @@ import android.net.Uri
 import android.provider.DocumentsContract
 import android.util.Log
 import android.view.Display
+import kotlinx.serialization.json.Json
 import java.io.File
 import kotlin.math.max
 import kotlin.math.min
@@ -23,13 +24,16 @@ import kotlin.math.roundToInt
  * The pictures, copied into the app's own storage when they are added: a
  * picture deleted from the gallery, or a lost URI grant, can't break a
  * rotation. Each is `img/<id>` as the original bytes, plus `thumb/<id>.jpg`
- * for the app's grids.
+ * for the app's grids. A picture Badal drew (plan 005) is a PNG at the
+ * screen's size, with its recipe in `design/<id>.json` to edit it again.
  */
 class Images(
     private val context: Context,
 ) {
     private val originals = File(context.filesDir, "img").apply { mkdirs() }
     private val thumbs = File(context.filesDir, "thumb").apply { mkdirs() }
+    private val designs = File(context.filesDir, "design").apply { mkdirs() }
+    private val json = Json { ignoreUnknownKeys = true }
 
     fun file(id: Long) = File(originals, id.toString())
 
@@ -42,14 +46,54 @@ class Images(
     ): Boolean =
         try {
             context.contentResolver.openInputStream(uri)!!.use { input -> file(id).outputStream().use { input.copyTo(it) } }
-            val small = sized(id, THUMB)
-            thumb(id).outputStream().use { small.compress(Bitmap.CompressFormat.JPEG, 85, it) }
+            thumbnail(id, sized(id, THUMB))
             true
         } catch (e: Exception) {
             Log.w("Badal", "can't add $uri", e)
             delete(id)
             false
         }
+
+    /**
+     * Draws [d] at the screen's size and keeps it under [id], with its recipe.
+     * Drawn once, not each time it is shown: then it is a picture like any other,
+     * and framing, Darken and the crossfade need nothing new (plan 005).
+     */
+    fun make(
+        d: Design,
+        id: Long,
+    ): Boolean =
+        try {
+            val (w, h) = screen()
+            val b = Painter.render(d, w, h)
+            file(id).outputStream().use { b.compress(Bitmap.CompressFormat.PNG, 100, it) }
+            thumbnail(id, Bitmap.createScaledBitmap(b, THUMB, THUMB * h / w, true))
+            b.recycle()
+            designFile(id).writeText(json.encodeToString(Design.serializer(), d))
+            true
+        } catch (e: Exception) {
+            Log.w("Badal", "can't draw design $id", e)
+            delete(id)
+            false
+        }
+
+    /** The recipe of a picture Badal drew; null for a photo, or one it can't read. */
+    fun design(id: Long): Design? =
+        try {
+            designFile(id).takeIf { it.exists() }?.let { json.decodeFromString(Design.serializer(), it.readText()) }
+        } catch (e: Exception) {
+            null
+        }
+
+    private fun designFile(id: Long) = File(designs, "$id.json")
+
+    private fun thumbnail(
+        id: Long,
+        small: Bitmap,
+    ) {
+        thumb(id).outputStream().use { small.compress(Bitmap.CompressFormat.JPEG, 85, it) }
+        small.recycle()
+    }
 
     /** The picture with its short side at least [side] pixels, or as large as it is; for the thumbnail and the framing editor. */
     fun sized(
@@ -64,6 +108,7 @@ class Images(
     fun delete(id: Long) {
         file(id).delete()
         thumb(id).delete()
+        designFile(id).delete()
     }
 
     /** The pictures directly inside a folder the user picked. Not recursive, and copied once, not kept in sync. */

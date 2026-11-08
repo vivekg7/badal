@@ -109,7 +109,8 @@ different one.
 Per-picture framing was added by [002](002_framing.md); the clock shade,
 reordering, favourites, day-of-week ranges and the battery-saver pause by
 [003](003_shade_order_favourites_days.md); the crossfade by
-[004](004_crossfade.md).
+[004](004_crossfade.md); wallpapers Badal draws itself by
+[005](005_designs.md).
 
 ## Ideas for later
 

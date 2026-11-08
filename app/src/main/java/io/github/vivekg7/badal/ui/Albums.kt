@@ -49,7 +49,9 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
@@ -69,6 +71,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.toOffset
 import androidx.compose.ui.zIndex
 import io.github.vivekg7.badal.Album
+import io.github.vivekg7.badal.Design
 import io.github.vivekg7.badal.Screen
 import io.github.vivekg7.badal.State
 import io.github.vivekg7.badal.app
@@ -181,6 +184,33 @@ fun AlbumPage(
         }
     if (reordering) BackHandler { reordering = false }
 
+    // Making wallpapers (plan 005): the gallery, then the designer over it.
+    var gallery by rememberSaveable { mutableStateOf(false) }
+    var draft by rememberSaveable { mutableStateOf<String?>(null) }
+    var redesigning by rememberSaveable { mutableStateOf<Long?>(null) }
+    draft?.let { json ->
+        val close = {
+            draft = null
+            redesigning = null
+        }
+        BackHandler(onBack = close)
+        DesignPage(decodeDesign(json), editing = redesigning != null, onBack = close, onDone = { d ->
+            val old = redesigning
+            close()
+            gallery = false
+            if (old != null) app.scope.launch { app.library.redesign(album.id, old, d) } else adding { app.library.make(album.id, listOf(d)) }
+        })
+        return
+    }
+    if (gallery) {
+        BackHandler { gallery = false }
+        GalleryPage(onBack = { gallery = false }, onOpen = { draft = it.encoded() }, onAdd = { list ->
+            gallery = false
+            adding { app.library.make(album.id, list) }
+        })
+        return
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -221,6 +251,7 @@ fun AlbumPage(
         floatingActionButton = {
             if (reordering) return@Scaffold
             Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                SmallFloatingActionButton({ gallery = true }) { Icon(Icons.Palette, "Make a wallpaper") }
                 SmallFloatingActionButton({ folder.launch(null) }) { Icon(Icons.Folder, "Add a folder") }
                 ExtendedFloatingActionButton(
                     onClick = { photos.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
@@ -237,7 +268,7 @@ fun AlbumPage(
             }
             if (album.images.isEmpty() && adding == null) {
                 Text(
-                    "No pictures yet. Add some from your gallery, or every picture in a folder.",
+                    "No pictures yet. Add some from your gallery or every picture in a folder, or make your own with the palette button.",
                     Modifier.padding(24.dp),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -360,6 +391,8 @@ fun AlbumPage(
     }
 
     tapped?.let { id ->
+        val design by produceState<Design?>(null, id) { value = withContext(Dispatchers.IO) { app.images.design(id) } }
+
         fun show(screens: List<Screen>) {
             tapped = null
             app.scope.launch { app.engine.show(id, screens) }
@@ -399,6 +432,18 @@ fun AlbumPage(
                                 app.scope.launch { app.library.star(album.id, setOf(id), !starred) }
                             },
                     )
+                    design?.let { found ->
+                        ListItem(
+                            headlineContent = { Text("Edit design…") },
+                            supportingContent = { Text("Change its colours or pattern") },
+                            modifier =
+                                Modifier.clickable {
+                                    tapped = null
+                                    redesigning = id
+                                    draft = found.encoded()
+                                },
+                        )
+                    }
                     ListItem(
                         headlineContent = { Text("Frame it…") },
                         supportingContent = { Text("Choose what each screen shows of it") },
