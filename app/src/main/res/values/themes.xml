@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      Only the window before Compose draws. The Compose theme takes its colours
+      from the wallpaper (Material You), which suits a wallpaper app.
+    -->
+    <style name="Theme.Badal" parent="android:Theme.DeviceDefault.DayNight">
+        <item name="android:windowActionBar">false</item>
+        <item name="android:windowNoTitle">true</item>
+    </style>
+</resources>

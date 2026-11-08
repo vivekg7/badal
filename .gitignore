@@ -1,0 +1,29 @@
+# Local notes, scratch files and this machine's release key: never committed.
+local/
+
+# Gradle and Android build output
+.gradle/
+.kotlin/
+build/
+captures/
+*.apk
+*.aab
+*.hprof
+# This machine's SDK path.
+local.properties
+
+# Secrets and signing keys
+.env
+.env.*
+*.jks
+*.keystore
+*.p12
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# OS metadata
+.DS_Store
+Thumbs.db
