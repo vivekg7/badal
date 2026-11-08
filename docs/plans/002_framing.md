@@ -1,6 +1,6 @@
 # 002 — Frame each picture, per screen
 
-Status: built (2026-11-08). Tested on a Galaxy A35 (One UI, Android 17).
+Status: built (v0.2.0, 2026-11-08). Tested on a Galaxy A35 (One UI, Android 17).
 
 ## Problem
 
