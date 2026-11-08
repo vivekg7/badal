@@ -10,7 +10,7 @@ and the lock screen. _Badal_ (बदल) means "change".
   number.
 - **Albums by time of day**, e.g. dark pictures from 22:00 to 06:00.
 - **Shuffle** (no repeats until every picture has shown) **or in order**, with
-  Previous and Next.
+  Previous and Next. **Drag to reorder** an album.
 - **Different pictures on each screen**, when both use the same album.
 - **Fill or fit**: crop to fill the screen, or show the whole picture over a
   blurred copy. **Darken** up to 70% so the clock and icons stay readable, or

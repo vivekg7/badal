@@ -56,4 +56,5 @@ object Icons {
     val Previous by icon("previous", "M6 6h2v12H6zm3.5 6l8.5 6V6z")
     val Folder by icon("folder", "M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z")
     val Check by icon("check", "M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z")
+    val Reorder by icon("swap_vert", "M16 17.01V10h-2v7.01h-3L15 21l4-3.99h-3zM9 3L5 6.99h3V14h2V6.99h3L9 3z")
 }

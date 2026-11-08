@@ -33,6 +33,16 @@ class Library(
         store.update { st -> st.copy(albums = st.albums.map { if (it.id == id) it.copy(name = name) else it }) }
     }
 
+    /** Puts the album's pictures in [order], which "in order" then plays. Ignored if it isn't the same pictures. */
+    suspend fun reorder(
+        albumId: Long,
+        order: List<Long>,
+    ) {
+        store.update { st ->
+            st.copy(albums = st.albums.map { if (it.id == albumId && it.images.toSet() == order.toSet()) it.copy(images = order) else it })
+        }
+    }
+
     suspend fun delete(id: Long) {
         val album = store.state.value.album(id) ?: return
         store.update { st ->
