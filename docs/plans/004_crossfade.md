@@ -1,6 +1,7 @@
 # 004 — Crossfade on the home screen
 
-Status: built (v0.4.0, 2026-11-08). Tested on the Android 17 emulator.
+Status: built (v0.4.0, 2026-11-08). Tested on the Android 17 emulator, and on
+a Galaxy A35 (One UI, Android 17), where it fades on the home screen.
 
 ## Problem
 
@@ -47,10 +48,11 @@ screen" in the system's dialog, the live wallpaper shows the home picture on
 both, and the lock screen's first `setBitmap` (when lock rotation is on) splits
 it off as a still picture again; the emulator showed exactly that.
 
-## Unverified on Samsung
+## On Samsung
 
-- Whether One UI offers third-party live wallpapers for the home screen
-  through `ACTION_CHANGE_LIVE_WALLPAPER`, and what it does to the lock screen.
+- One UI opens its preview from `ACTION_CHANGE_LIVE_WALLPAPER` and takes
+  Badal as the home screen's live wallpaper; the fade shows as on the
+  emulator. What it does to the lock screen is still unchecked.
 - Samsung's wallpaper dimming in dark mode applies to still wallpapers only
   (001); with Crossfade on, use Darken instead.
 
