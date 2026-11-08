@@ -1,16 +1,17 @@
-# 003 — Clock shade, album order
+# 003 — Clock shade, album order, favourites
 
 Status: built (2026-11-08). Tested on the Android 17 emulator, and the shade
 on a Galaxy A35 (One UI, Android 17) against its real clock.
 
 ## Problem
 
-Two gaps left by 001 and 002:
+Three gaps left by 001 and 002:
 
 - **Darken** dims the whole picture to keep the lock-screen clock readable, so a
   bright sky behind the clock costs the whole picture its colour.
 - **In order** plays an album in the order pictures were added, and nothing
   could change that.
+- **Every picture is equal** in Shuffle. Some deserve to come up more often.
 
 ## Decisions
 
@@ -40,6 +41,15 @@ in the code:
   leaving the held picture a column off. The held slot comes from the grid's
   layout info instead, which is current every frame.
 
+**Favourites come up twice per Shuffle round** (`Album.starred`). The bag of
+pictures not yet shown this round holds a favourite twice, so "no repeats until
+everything has shown" still holds, and a favourite still can't come up twice
+in a row (`Plan.round` pulls neighbours apart). Twice, fixed, not a weight
+setting: it is the smallest step that is noticeable, and one more setting
+would have to explain what "weight 3" means. **In order ignores stars**: it
+plays the album as arranged. Stars belong to the album, so a picture's star
+goes when it is removed.
+
 ## Rejected
 
 - **A shade that adapts to how bright the picture is behind the clock.** It
@@ -48,3 +58,4 @@ in the code:
   wrong for dark pictures.
 - **Drag handles on each picture**, to reorder without a mode: they crowd a
   three-column grid of thumbnails.
+- **A weight per favourite** (1×–5×): see above.

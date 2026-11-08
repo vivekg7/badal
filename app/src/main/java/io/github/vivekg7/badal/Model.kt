@@ -28,6 +28,8 @@ data class Album(
     val id: Long,
     val name: String,
     val images: List<Long> = emptyList(),
+    /** Favourites: Shuffle shows each of these twice a round. */
+    val starred: Set<Long> = emptySet(),
 )
 
 /** Use [albumId] from [start] until [end], in minutes after midnight. A range may run past midnight. */
@@ -233,14 +235,15 @@ object Plan {
             if (s !in screens || s !in out.driven) continue
             val r = out.rotation(s)
             val album = albumAt(r, t, zone)
-            val images = out.album(album)?.images.orEmpty()
+            val a = out.album(album)
             val avoid = if (out.distinct && out.rotation(s.other()).enabled) out.progress(s.other()).current else null
-            val p = pick(images, r.order, out.progress(s), album, avoid, random) ?: continue
+            val p = pick(a?.images.orEmpty(), r.order, out.progress(s), album, avoid, random, a?.starred.orEmpty()) ?: continue
             out = out.with(s, p.copy(changedAt = t))
         }
         return synced(out)
     }
 
+    /** [starred] pictures come up twice in each Shuffle round; In order plays the album as it is. */
     fun pick(
         images: List<Long>,
         order: Order,
@@ -248,6 +251,7 @@ object Plan {
         album: Long?,
         avoid: Long?,
         random: Random = Random,
+        starred: Set<Long> = emptySet(),
     ): Progress? {
         if (images.isEmpty()) return null
         val sameAlbum = p.album == album
@@ -263,13 +267,38 @@ object Plan {
                 Order.SHUFFLE -> {
                     val present = images.toSet()
                     bag = if (sameAlbum) p.bag.filter { it in present } else emptyList()
-                    if (bag.isEmpty()) bag = images.shuffled(random).let { all -> if (all.size > 1) all - setOfNotNull(p.current) else all }
+                    if (bag.isEmpty()) bag = round(images, starred, p.current, random)
                     val chosen = bag.firstOrNull { it != avoid } ?: bag.first()
                     bag = bag - chosen
                     chosen
                 }
             }
         return Progress(next, album, p.changedAt, bag, pushed(p))
+    }
+
+    /**
+     * A new Shuffle round: every picture once and each favourite twice, never the
+     * same one twice in a row, and not opening with [last], which closed the
+     * round before. ([last] is dropped from the round entirely, as long as there
+     * is something else to show.)
+     */
+    fun round(
+        images: List<Long>,
+        starred: Set<Long>,
+        last: Long?,
+        random: Random = Random,
+    ): List<Long> {
+        val all = (images + images.filter { it in starred }).shuffled(random).toMutableList()
+        if (images.size > 1 && last != null) all.remove(last)
+        // Pull a repeat apart by swapping in the next different picture; at worst
+        // (one favourite left over at the end) a repeat stays, as with one picture.
+        for (i in all.indices) {
+            val before = if (i == 0) last else all[i - 1]
+            if (all[i] != before) continue
+            val j = (i + 1 until all.size).firstOrNull { all[it] != before } ?: break
+            all[i] = all[j].also { all[j] = all[i] }
+        }
+        return all
     }
 
     /** Go back to the picture before; it is put first in line, so Next returns to where you were. */

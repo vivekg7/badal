@@ -105,12 +105,12 @@ different one.
 - If the phone kills the watcher anyway (Device care, Sleeping apps), add
   Badal to "Never sleeping apps".
 
-Per-picture framing was added by [002](002_framing.md); the clock shade and
-reordering by
+Per-picture framing was added by [002](002_framing.md); the clock shade,
+reordering and favourites by
 [003](003_shade_order_favourites_days.md).
 
 ## Ideas for later
 
-Live-folder albums (re-scan a folder), a grayscale or blur effect, a crossfade (needs the live wallpaper), a
-"change only while charging" or "not on battery saver" rule, a day-of-week
-schedule, and weighted favourites.
+Live-folder albums (re-scan a folder), a grayscale or blur effect, a crossfade
+(needs the live wallpaper), a "change only while charging" or "not on battery
+saver" rule, and a day-of-week schedule.

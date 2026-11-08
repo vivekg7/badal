@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyGridItemInfo
 import androidx.compose.foundation.lazy.grid.LazyGridState
@@ -56,6 +57,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerInputScope
@@ -203,6 +205,14 @@ fun AlbumPage(
                     if (selected.isEmpty()) {
                         if (album.images.size > 1) IconButton({ reordering = true }) { Icon(Icons.Reorder, "Reorder") }
                         IconButton({ renaming = true }) { Icon(Icons.Edit, "Rename") }
+                    } else {
+                        // Star them all, unless they all are already: then unstar.
+                        val all = album.starred.containsAll(selected)
+                        IconButton({
+                            val ids = selected
+                            selected = emptySet()
+                            app.scope.launch { app.library.star(album.id, ids, !all) }
+                        }) { Icon(if (all) Icons.Star else Icons.StarOutline, if (all) "Remove from favourites" else "Add to favourites") }
                     }
                     IconButton({ deleting = true }) { Icon(Icons.Delete, if (selected.isEmpty()) "Delete album" else "Remove pictures") }
                 },
@@ -237,6 +247,13 @@ fun AlbumPage(
                     "Hold a picture, then drag it. “In order” plays them in this order.",
                     Modifier.padding(16.dp, 8.dp),
                     style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            } else if (album.starred.isEmpty() && album.images.size > 1) {
+                Text(
+                    "Long-press pictures and star them: Shuffle shows favourites twice as often.",
+                    Modifier.padding(16.dp, 8.dp),
+                    style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
@@ -322,6 +339,20 @@ fun AlbumPage(
                                 tint = MaterialTheme.colorScheme.onPrimary,
                             )
                         }
+                        if (id in album.starred) {
+                            Icon(
+                                Icons.Star,
+                                "Favourite",
+                                Modifier
+                                    .align(Alignment.BottomStart)
+                                    .padding(6.dp)
+                                    .clip(CircleShape)
+                                    .background(Color.Black.copy(alpha = 0.4f))
+                                    .padding(3.dp)
+                                    .size(16.dp),
+                                tint = Color.White,
+                            )
+                        }
                     }
                 }
             }
@@ -357,6 +388,16 @@ fun AlbumPage(
                     ListItem(
                         headlineContent = { Text("On both") },
                         modifier = Modifier.clickable { show(listOf(Screen.HOME, Screen.LOCK)) },
+                    )
+                    val starred = id in album.starred
+                    ListItem(
+                        headlineContent = { Text(if (starred) "Remove from favourites" else "Add to favourites") },
+                        supportingContent = { Text("Shuffle shows favourites twice as often") },
+                        modifier =
+                            Modifier.clickable {
+                                tapped = null
+                                app.scope.launch { app.library.star(album.id, setOf(id), !starred) }
+                            },
                     )
                     ListItem(
                         headlineContent = { Text("Frame it…") },

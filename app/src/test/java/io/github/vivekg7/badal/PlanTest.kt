@@ -147,4 +147,27 @@ class PlanTest {
         val st = base.copy(home = base.home.copy(albumId = 999))
         assertEquals(st.homeNow, Plan.advance(st, listOf(Screen.HOME), at(9), zone).homeNow)
     }
+
+    @Test
+    fun favouritesShowTwiceARoundButNeverTwiceInARow() {
+        repeat(50) { seed ->
+            val round = Plan.round(pics, setOf(1L, 2L), last = 1L, Random(seed))
+            // 1 closed the last round, so it comes once more this round; 2 twice; the rest once.
+            assertEquals(listOf(1L, 2L, 2L, 3L, 4L, 5L), round.sorted())
+            assertNotEquals(1L, round.first())
+            round.zipWithNext().forEach { (a, b) -> assertNotEquals(a, b) }
+        }
+    }
+
+    @Test
+    fun aFavouriteComesUpTwiceAsOften() {
+        var p = Progress()
+        val seen = mutableListOf<Long>()
+        repeat(60) {
+            p = Plan.pick(pics, Order.SHUFFLE, p, 100, null, Random(it), starred = setOf(3L))!!
+            seen += p.current!!
+        }
+        val three = seen.count { it == 3L }
+        assertTrue("3 showed $three times in 60", three in 18..22)
+    }
 }

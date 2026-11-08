@@ -43,6 +43,17 @@ class Library(
         }
     }
 
+    /** Marks pictures as favourites ([on]) or not; Shuffle shows a favourite twice a round. */
+    suspend fun star(
+        albumId: Long,
+        ids: Set<Long>,
+        on: Boolean,
+    ) {
+        store.update { st ->
+            st.copy(albums = st.albums.map { if (it.id == albumId) it.copy(starred = if (on) it.starred + ids else it.starred - ids) else it })
+        }
+    }
+
     suspend fun delete(id: Long) {
         val album = store.state.value.album(id) ?: return
         store.update { st ->
@@ -91,7 +102,7 @@ class Library(
     ) {
         store.update { st ->
             st.copy(
-                albums = st.albums.map { if (it.id == albumId) it.copy(images = it.images - ids) else it },
+                albums = st.albums.map { if (it.id == albumId) it.copy(images = it.images - ids, starred = it.starred - ids) else it },
                 home = st.home.copy(frames = st.home.frames - ids),
                 lock = st.lock.copy(frames = st.lock.frames - ids),
             )
