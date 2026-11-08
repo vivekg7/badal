@@ -13,7 +13,9 @@ and the lock screen. _Badal_ (बदल) means "change".
   Previous and Next.
 - **Different pictures on each screen**, when both use the same album.
 - **Fill or fit**: crop to fill the screen, or show the whole picture over a
-  blurred copy. **Darken** up to 70% so the clock and icons stay readable.
+  blurred copy. **Darken** up to 70% so the clock and icons stay readable, or
+  on the lock screen **shade only behind the clock**
+  ([plan 003](docs/plans/003_shade_order_favourites_days.md)).
 - **Frame each picture for each screen**: drag and pinch it into place, with
   a guide showing where the lock-screen clock and the dock sit
   ([plan 002](docs/plans/002_framing.md)).

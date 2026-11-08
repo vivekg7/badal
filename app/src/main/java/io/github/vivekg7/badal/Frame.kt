@@ -117,3 +117,21 @@ object Framing {
     // Four places keep state.json short; a ten-thousandth of a 50 MP photo is under a pixel.
     private fun round(v: Float) = (v * 10_000).roundToInt() / 10_000f
 }
+
+/**
+ * The lock screen's shade behind the clock: full strength over the top of the
+ * screen, where One UI puts the clock and date, easing out to nothing by a bit
+ * past a third of the way down (plan 003). Stops are (fraction of the
+ * height, fraction of the strength), shared by the renderer and the previews.
+ */
+object Shade {
+    val stops =
+        listOf(
+            0f to 1f,
+            0.3f to 1f,
+            0.36f to 0.85f,
+            0.42f to 0.5f,
+            0.48f to 0.15f,
+            0.55f to 0f,
+        )
+}

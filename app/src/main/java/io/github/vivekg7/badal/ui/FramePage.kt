@@ -44,6 +44,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.ImageBitmap
@@ -62,6 +63,7 @@ import io.github.vivekg7.badal.Fit
 import io.github.vivekg7.badal.Frame
 import io.github.vivekg7.badal.Framing
 import io.github.vivekg7.badal.Screen
+import io.github.vivekg7.badal.Shade
 import io.github.vivekg7.badal.State
 import io.github.vivekg7.badal.app
 import kotlinx.coroutines.Dispatchers
@@ -71,12 +73,13 @@ import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import kotlin.math.roundToInt
 
-/** A picture placed by [frame] over a blurred copy of itself, then darkened by [dim]: the wallpaper, small. */
+/** A picture placed by [frame] over a blurred copy of itself, then darkened by [dim] and [shade]: the wallpaper, small. */
 @Composable
 fun Framed(
     bitmap: ImageBitmap?,
     frame: Frame,
     dim: Int,
+    shade: Int,
     modifier: Modifier = Modifier,
 ) {
     Box(modifier.background(MaterialTheme.colorScheme.surfaceVariant)) {
@@ -92,6 +95,10 @@ fun Framed(
                     filterQuality = FilterQuality.Medium,
                 )
                 if (dim > 0) drawRect(Color.Black.copy(alpha = dim / 100f))
+                if (shade > 0) {
+                    val stops = Shade.stops.map { (at, k) -> at to Color.Black.copy(alpha = shade * k / 100f) }.toTypedArray()
+                    drawRect(Brush.verticalGradient(*stops, startY = 0f, endY = size.height))
+                }
             }
         }
     }
@@ -176,7 +183,7 @@ fun FramePage(
                             })
                         },
                 ) {
-                    Framed(shown, frame, r.dim, Modifier.fillMaxSize())
+                    Framed(shown, frame, r.dim, r.shade, Modifier.fillMaxSize())
                     if (guides) Guides(screen, Modifier.fillMaxSize())
                 }
             }

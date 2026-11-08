@@ -227,6 +227,25 @@ fun ScreenPage(
                 },
                 trailingContent = { Text("${dim.toInt()}%") },
             )
+            if (screen == Screen.LOCK) {
+                var shade by remember(r.shade) { mutableFloatStateOf(r.shade.toFloat()) }
+                ListItem(
+                    headlineContent = { Text("Shade behind the clock") },
+                    supportingContent = {
+                        Column {
+                            Text("Darkens only the top, fading out below the clock")
+                            Slider(
+                                shade,
+                                { shade = it },
+                                valueRange = 0f..70f,
+                                steps = 13,
+                                onValueChangeFinished = { edit { it.copy(shade = shade.toInt()) } },
+                            )
+                        }
+                    },
+                    trailingContent = { Text("${shade.toInt()}%") },
+                )
+            }
         }
     }
 
@@ -280,7 +299,7 @@ private fun Preview(
                 .clip(MaterialTheme.shapes.large)
                 .clickable(enabled = id != null) { id?.let(onFrame) },
         ) {
-            Framed(rememberThumb(id), id?.let { r.frame(it) } ?: Framing.of(r.fit), r.dim, Modifier.fillMaxSize())
+            Framed(rememberThumb(id), id?.let { r.frame(it) } ?: Framing.of(r.fit), r.dim, r.shade, Modifier.fillMaxSize())
             if (busy) CircularProgressIndicator(Modifier.align(Alignment.Center).size(32.dp), color = Color.White)
         }
         Column(Modifier.padding(start = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {

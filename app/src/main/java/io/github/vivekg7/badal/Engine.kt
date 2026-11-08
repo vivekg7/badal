@@ -72,6 +72,7 @@ class Engine(
                 (
                     !before.enabled ||
                         after.dim != before.dim ||
+                        after.shade != before.shade ||
                         after.sameAsHome != before.sameAsHome ||
                         (shown != null && after.frame(shown) != before.frame(shown))
                 )
@@ -128,14 +129,14 @@ class Engine(
             try {
                 withContext(Dispatchers.IO) {
                     val (w, h) = images.screen()
-                    val drawn = mutableMapOf<Triple<Long, Frame, Int>, android.graphics.Bitmap>()
+                    val drawn = mutableMapOf<List<Any>, android.graphics.Bitmap>()
                     for ((s, id) in wanted) {
                         val r = after.rotation(s)
                         try {
                             // Set each screen on its own, never both flags at once: that makes
                             // the lock screen follow the home screen from then on.
                             val frame = r.frame(id)
-                            val bmp = drawn.getOrPut(Triple(id, frame, r.dim)) { images.render(id, w, h, frame, r.dim) }
+                            val bmp = drawn.getOrPut(listOf(id, frame, r.dim, r.shade)) { images.render(id, w, h, frame, r.dim, r.shade) }
                             val flag = if (s == Screen.HOME) WallpaperManager.FLAG_SYSTEM else WallpaperManager.FLAG_LOCK
                             WallpaperManager.getInstance(context).setBitmap(bmp, null, true, flag)
                         } catch (e: Exception) {

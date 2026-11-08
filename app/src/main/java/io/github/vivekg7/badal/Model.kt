@@ -63,6 +63,8 @@ data class Rotation(
     val fit: Fit = Fit.FILL,
     /** Darken by this many percent, so a busy picture does not hide the clock or icons. */
     val dim: Int = 0,
+    /** Lock screen: darken by this many percent behind the clock, fading out below it (plan 003). */
+    val shade: Int = 0,
     /** Pictures the user framed by hand for this screen, by id. */
     val frames: Map<Long, Frame> = emptyMap(),
 ) {

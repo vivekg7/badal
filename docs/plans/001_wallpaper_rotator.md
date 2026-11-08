@@ -105,7 +105,8 @@ different one.
 - If the phone kills the watcher anyway (Device care, Sleeping apps), add
   Badal to "Never sleeping apps".
 
-Per-picture framing was added by [002](002_framing.md).
+Per-picture framing was added by [002](002_framing.md); the clock shade by
+[003](003_shade_order_favourites_days.md).
 
 ## Ideas for later
 

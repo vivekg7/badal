@@ -5,8 +5,10 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.ImageDecoder
+import android.graphics.LinearGradient
 import android.graphics.Matrix
 import android.graphics.Paint
+import android.graphics.Shader
 import android.hardware.display.DisplayManager
 import android.net.Uri
 import android.provider.DocumentsContract
@@ -89,13 +91,18 @@ class Images(
         return min(mode.physicalWidth, mode.physicalHeight) to max(mode.physicalWidth, mode.physicalHeight)
     }
 
-    /** The picture as it will look on a [w]×[h] screen: placed by [frame] over a blurred copy where it leaves gaps, then dimmed. */
+    /**
+     * The picture as it will look on a [w]×[h] screen: placed by [frame] over a
+     * blurred copy where it leaves gaps, dimmed by [dim] percent, and shaded at the
+     * top by [shade] percent ([Shade]).
+     */
     fun render(
         id: Long,
         w: Int,
         h: Int,
         frame: Frame,
         dim: Int,
+        shade: Int,
     ): Bitmap {
         val src =
             ImageDecoder.decodeBitmap(ImageDecoder.createSource(file(id))) { d, info, _ ->
@@ -136,6 +143,12 @@ class Images(
             paint,
         )
         if (dim > 0) canvas.drawColor(Color.argb(dim * 255 / 100, 0, 0, 0))
+        if (shade > 0) {
+            val colors = Shade.stops.map { (_, k) -> Color.argb((shade * 255 * k / 100).roundToInt(), 0, 0, 0) }
+            val positions = Shade.stops.map { it.first }
+            val gradient = LinearGradient(0f, 0f, 0f, h.toFloat(), colors.toIntArray(), positions.toFloatArray(), Shader.TileMode.CLAMP)
+            canvas.drawRect(0f, 0f, w.toFloat(), h.toFloat(), Paint().apply { shader = gradient })
+        }
         src.recycle()
         return out
     }
