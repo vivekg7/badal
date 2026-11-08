@@ -1,6 +1,6 @@
 # 003 — Clock shade, album order, favourites, days of the week
 
-Status: built (2026-11-08). Tested on the Android 17 emulator, and the shade
+Status: built (v0.3.0, 2026-11-08). Tested on the Android 17 emulator, and the shade
 on a Galaxy A35 (One UI, Android 17) against its real clock.
 
 ## Problem
