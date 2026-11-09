@@ -2,9 +2,10 @@
 
 Status: in progress. The bundle, listing, graphics, privacy policy and the
 battery change are built (v0.7.1, 2026-11-09; the battery row tested on the
-Android 17 emulator), and the in-app policy link in v0.7.2. On Play Console
-(2026-11-09) the app, its listing, store settings and every App content
-declaration are done; the release is next.
+Android 17 emulator), and the in-app policy link in v0.7.2. On 2026-11-09
+v0.7.2 (versionCode 10) was sent for review on the production track, in 178
+countries/regions, with managed publishing off, so it goes live once
+approved.
 
 ## Problem
 
@@ -106,9 +107,10 @@ intent needs no internet permission, so Badal stays offline.
      changes only to a receiver registered by a running process. The service
      runs only while the user has turned on 'On each lock' or a mode that
      follows one of these, and stops when they turn it off. If it is
-     interrupted, the wallpaper stops changing on lock." Video: screen
-     recording of Lock tab → Change: On each lock → lock and unlock, showing
-     the new picture.
+     interrupted, the wallpaper stops changing on lock." Video: a 30 s
+     emulator recording (Lock tab → On each lock on → screen off → new picture
+     on wake), kept in `local/play/badal-fgs-demo.mp4` and shared from the
+     account's Drive (Badal folder, anyone with the link).
    - Exact alarm: if asked, "the user's chosen change times and time-of-day
      albums"; user-granted from Settings → Exact timing.
 6. **Closed testing**: upload `local/releases/v<version>/badal-v<version>.aab`
