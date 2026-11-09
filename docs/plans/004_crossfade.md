@@ -3,7 +3,7 @@
 Status: built for the home screen in v0.4.0 (2026-11-08); tested on the
 Android 17 emulator, and on a Galaxy A35 (One UI, Android 17), where it fades
 on the home screen. The lock screen followed in v0.6.0 (2026-11-09); tested on
-the emulator, where it fades while the lock screen is in view.
+the emulator and on the A35, where it fades while the lock screen is in view.
 
 ## Problem
 
@@ -66,8 +66,8 @@ do with a still wallpaper. On the emulator the palette followed each change.
 
 - One UI opens its preview from `ACTION_CHANGE_LIVE_WALLPAPER` and takes
   Badal as the home screen's live wallpaper; the fade shows as on the
-  emulator. Its Set wallpaper dialog also offers "Lock screen" alone (seen on
-  the A35); whether the fade then shows there is still to check.
+  emulator. Its Set wallpaper dialog also offers "Lock screen" alone, and
+  with Badal set there the lock screen fades too (A35, v0.6.0).
 - Samsung's wallpaper dimming in dark mode applies to still wallpapers only
   (001); with Crossfade on, use Darken instead.
 
