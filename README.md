@@ -115,7 +115,7 @@ existing archive without `--force`. Bump `versionCode` and `versionName` in
 ### Google Play
 
 The store listing (texts, icon, feature graphic, screenshots) is in
-`fastlane/metadata/android/en-US/`, and the privacy policy in
+`fastlane/metadata/android/en-GB/`, and the privacy policy in
 [PRIVACY.md](PRIVACY.md). What to fill in on Play Console, and why the
 listing and permissions are as they are:
 [plan 011](docs/plans/011_play_store.md).

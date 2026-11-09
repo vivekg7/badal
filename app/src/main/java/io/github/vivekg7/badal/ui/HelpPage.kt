@@ -141,7 +141,7 @@ private val help =
                     "private: it has your pictures in it.",
                 "Privacy" to
                     "Badal has no internet access. Your pictures never leave the phone, and Android's backup is off for it: " +
-                    "Save a backup instead.",
+                    "Save a backup instead. Privacy policy (Settings) opens the full policy in your browser.",
             ),
     )
 

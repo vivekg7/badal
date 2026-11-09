@@ -27,3 +27,6 @@ local.properties
 # OS metadata
 .DS_Store
 Thumbs.db
+
+# Time Machine browser captures: hold session cookies, never committed.
+storage/

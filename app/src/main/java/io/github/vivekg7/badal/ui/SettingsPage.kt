@@ -3,6 +3,7 @@ package io.github.vivekg7.badal.ui
 import android.app.AlarmManager
 import android.app.StatusBarManager
 import android.appwidget.AppWidgetManager
+import android.content.ActivityNotFoundException
 import android.content.ComponentName
 import android.content.Intent
 import android.graphics.drawable.Icon
@@ -169,6 +170,15 @@ fun SettingsPage(
             Setting(Icons.Save, "Save a backup", onClick = { saving.launch("badal-${LocalDate.now()}.zip") }) { Value("") }
             Setting(Icons.Restore, "Restore a backup", onClick = { opening.launch(arrayOf("application/zip")) }) { Value("") }
             Setting(Icons.Help, "Help", onClick = onHelp) { Value("") }
+            // Play wants the policy reachable from inside the app; a browser opens it, so Badal
+            // itself still needs no internet permission (docs/plans/011_play_store.md).
+            Setting(Icons.Privacy, "Privacy policy", onClick = {
+                try {
+                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(PRIVACY_URL)))
+                } catch (e: ActivityNotFoundException) {
+                    Toast.makeText(context, PRIVACY_URL, Toast.LENGTH_LONG).show()
+                }
+            }) { Value("") }
             Setting(Icons.Info, "Badal $version") { Value("Offline", opens = false) }
         }
     }
@@ -296,3 +306,5 @@ private fun ModeDialog(
         }, onDismiss = { picking = null })
     }
 }
+
+private const val PRIVACY_URL = "https://github.com/vivekg7/badal/blob/main/PRIVACY.md"
