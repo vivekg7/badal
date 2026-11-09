@@ -1,8 +1,10 @@
 # 009 — Modes: other albums for a while
 
-Status: built (2026-11-09). Tested on the Android 17 emulator: dark theme, Do
-Not Disturb, and the launcher shortcut. Samsung's Modes and Routines running
-the shortcut is not yet tried on the A35.
+Status: built (v0.7.0, 2026-11-09). Tested on the Android 17 emulator: dark
+theme, Do Not Disturb, and the launcher shortcut. On a Galaxy A35 (One UI,
+Android 17), Modes and Routines lists a mode's shortcut under "Open an app or
+do an app action" and runs it. It lists only the shortcuts published at the
+time, so a mode on By hand must exist first.
 
 ## Problem
 
