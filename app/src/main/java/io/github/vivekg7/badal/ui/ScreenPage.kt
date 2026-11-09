@@ -107,7 +107,7 @@ fun ScreenPage(
     var addingRange by remember { mutableStateOf(false) }
     // Whether Badal is the live wallpaper is the system's to say: ask again on every return from its picker.
     val resumed = resumes()
-    var live by remember(resumed) { mutableStateOf(screen == Screen.HOME && app.engine.live()) }
+    var live by remember(resumed) { mutableStateOf(screen in app.engine.live()) }
 
     Column(Modifier.verticalScroll(rememberScrollState()).padding(bottom = 24.dp)) {
         Preview(screen, state, follows, onFrame)
@@ -265,7 +265,7 @@ fun ScreenPage(
                     trailingContent = { Text("${shade.toInt()}%") },
                 )
             }
-            if (screen == Screen.HOME && (r.enabled || live)) {
+            if (r.enabled || live) {
                 ListItem(
                     headlineContent = { Text("Crossfade") },
                     supportingContent = {
@@ -273,7 +273,7 @@ fun ScreenPage(
                             if (live) {
                                 "On: Badal is the live wallpaper, and fades to each new picture"
                             } else {
-                                "Fade to each new picture while you watch, instead of switching. Makes Badal a live wallpaper."
+                                "Fade to each new picture while you watch, instead of switching. Makes Badal this screen's live wallpaper."
                             },
                         )
                     },
@@ -283,7 +283,7 @@ fun ScreenPage(
                                 chooseLive(context)
                             } else {
                                 live = false
-                                app.scope.launch { app.engine.still() }
+                                app.scope.launch { app.engine.still(screen) }
                             }
                         })
                     },

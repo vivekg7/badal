@@ -60,17 +60,25 @@ class Engine(
         commit(st, Plan.synced(out), force = screens.toSet())
     }
 
-    /** Badal is the home screen's live wallpaper, which draws the home picture itself (plan 004). */
-    fun live() = WallpaperManager.getInstance(context).wallpaperInfo?.component == ComponentName(context, LiveWallpaper::class.java)
+    /**
+     * The screens Badal is the live wallpaper of, which draw their pictures
+     * themselves (plan 004). A lock screen that shares the home screen's live
+     * wallpaper has none of its own and isn't counted: it shows the home picture.
+     */
+    fun live(): Set<Screen> {
+        val wm = WallpaperManager.getInstance(context)
+        val badal = ComponentName(context, LiveWallpaper::class.java)
+        return Screen.entries.filter { wm.getWallpaperInfo(it.flag)?.component == badal }.toSet()
+    }
 
-    /** Leave the live wallpaper: setting the home picture as a still one replaces it. */
-    suspend fun still() =
+    /** Leave the live wallpaper on [s]: setting its picture as a still one replaces it. */
+    suspend fun still(s: Screen) =
         mutex.withLock {
             val st = store.state.value
-            if (st.homeNow.current == null) {
-                WallpaperManager.getInstance(context).clear(WallpaperManager.FLAG_SYSTEM)
+            if (st.progress(s).current == null) {
+                WallpaperManager.getInstance(context).clear(s.flag)
             } else {
-                commit(st, st, force = setOf(Screen.HOME), live = false)
+                commit(st, st, force = setOf(s), live = live() - s)
             }
         }
 
@@ -132,14 +140,14 @@ class Engine(
         before: State,
         after: State,
         force: Set<Screen> = emptySet(),
-        live: Boolean = live(),
+        live: Set<Screen> = live(),
     ) {
         val wanted =
             Screen.entries.mapNotNull { s ->
                 val id = after.progress(s).current ?: return@mapNotNull null
                 val touched = s in force || (after.rotation(s).enabled && id != before.progress(s).current)
-                // The live wallpaper follows homeNow on its own; a still one would replace it.
-                if (touched && !(s == Screen.HOME && live)) s to id else null
+                // The live wallpaper follows homeNow / lockNow on its own; a still one would replace it.
+                if (touched && s !in live) s to id else null
             }
         drawing.value = wanted.isNotEmpty()
         // Busy until the new progress is saved, so the app never shows the old picture as done.
@@ -155,8 +163,7 @@ class Engine(
                             // the lock screen follow the home screen from then on.
                             val frame = r.frame(id)
                             val bmp = drawn.getOrPut(listOf(id, frame, r.dim, r.shade)) { images.render(id, w, h, frame, r.dim, r.shade) }
-                            val flag = if (s == Screen.HOME) WallpaperManager.FLAG_SYSTEM else WallpaperManager.FLAG_LOCK
-                            WallpaperManager.getInstance(context).setBitmap(bmp, null, true, flag)
+                            WallpaperManager.getInstance(context).setBitmap(bmp, null, true, s.flag)
                         } catch (e: Exception) {
                             Log.e("Badal", "can't set $s to $id", e)
                         }
@@ -191,3 +198,5 @@ class Engine(
 
     private fun now() = System.currentTimeMillis()
 }
+
+private val Screen.flag get() = if (this == Screen.HOME) WallpaperManager.FLAG_SYSTEM else WallpaperManager.FLAG_LOCK

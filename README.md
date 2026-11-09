@@ -21,8 +21,8 @@ and the lock screen. _Badal_ (बदल) means "change".
 - **Frame each picture for each screen**: drag and pinch it into place, with
   a guide showing where the lock-screen clock and the dock sit
   ([plan 002](docs/plans/002_framing.md)).
-- **Crossfade** on the home screen, if you like: Badal becomes the live
-  wallpaper and fades to each new picture
+- **Crossfade** on the home screen, the lock screen or both, if you like:
+  Badal becomes that screen's live wallpaper and fades to each new picture
   ([plan 004](docs/plans/004_crossfade.md)).
 - **Make your own abstract wallpapers**: plain colours, gradients and mesh
   gradients, with 56 patterns over them (dots in grids, rings, rays

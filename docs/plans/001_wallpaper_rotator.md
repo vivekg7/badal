@@ -83,10 +83,11 @@ different one.
 
 - **A live wallpaper (`WallpaperService`)** would draw the home screen itself,
   with instant swaps and crossfades and no foreground service. Rejected for
-  now: One UI's lock screen doesn't take third-party live wallpapers, and
+  now: One UI's lock screen didn't take third-party live wallpapers, and
   Samsung's home-screen wallpaper options (dimming, dark mode) work on static
-  images only. Since added as an optional home-screen mode, for the
-  crossfade ([004](004_crossfade.md)).
+  images only. Since added as an optional mode for either screen, for the
+  crossfade ([004](004_crossfade.md)); One UI on Android 17 now offers it for
+  the lock screen too.
 - **WorkManager** for intervals: its minimum period is 15 minutes, and it adds
   a dependency where one alarm does.
 - **Room**: no queries that a list in memory can't answer. It would bring KSP

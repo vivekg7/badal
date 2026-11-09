@@ -1,6 +1,7 @@
 package io.github.vivekg7.badal
 
 import android.app.WallpaperColors
+import android.app.WallpaperManager
 import android.graphics.Bitmap
 import android.graphics.Color
 import android.graphics.Paint
@@ -20,29 +21,33 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
- * The home screen as a live wallpaper, for the one thing a still one can't do:
- * fade from one picture to the next (docs/plans/004_crossfade.md). It draws
- * whatever the engine picked for the home screen, and the engine stops setting
- * a still home wallpaper while this one is set ([Engine.live]).
+ * The home or lock screen as a live wallpaper, for the one thing a still one
+ * can't do: fade from one picture to the next (docs/plans/004_crossfade.md).
+ * Each screen it is set on gets its own [Live] engine, which draws whatever the
+ * engine picked for that screen; the engine stops setting a still wallpaper
+ * there while this one is set ([Engine.live]).
  */
 class LiveWallpaper : WallpaperService() {
     override fun onCreateEngine(): Engine = Live()
 
-    /** What the home screen shows: a new one is drawn again, and fades in if only the picture changed. */
+    /** What the screen shows: a new one is drawn again, and fades in if only the picture changed. */
     private data class Look(
         val id: Long,
         val frame: Frame,
         val dim: Int,
+        val shade: Int,
     )
 
     private inner class Live : Engine() {
         private val scope: CoroutineScope = MainScope()
         private val size = MutableStateFlow<Pair<Int, Int>?>(null)
+
+        /** The screen this engine draws: the lock screen only when it is set there alone. */
+        private val screen = MutableStateFlow(Screen.HOME)
         private val paint = Paint(Paint.FILTER_BITMAP_FLAG)
         private val ease = DecelerateInterpolator()
         private var shown: Bitmap? = null
@@ -56,7 +61,13 @@ class LiveWallpaper : WallpaperService() {
 
         override fun onCreate(holder: SurfaceHolder) {
             super.onCreate(holder)
-            val looks = app.store.state.map { st -> st.homeNow.current?.let { Look(it, st.home.frame(it), st.home.dim) } }
+            onWallpaperFlagsChanged(wallpaperFlags)
+            val looks =
+                combine(app.store.state, screen) { st, s ->
+                    val r = st.rotation(s)
+                    // A lock screen Badal doesn't change yet still shows something: the home picture.
+                    (st.progress(s).current ?: st.homeNow.current)?.let { Look(it, r.frame(it), r.dim, r.shade) }
+                }
             scope.launch {
                 // Conflated: after several quick Nexts, draw only the last.
                 combine(size.filterNotNull(), looks) { s, l -> s to l }
@@ -76,8 +87,10 @@ class LiveWallpaper : WallpaperService() {
                     try {
                         // Colours from the full picture, then a hardware copy that is
                         // uploaded to the GPU once instead of on every frame of the fade.
-                        val full = look?.let { app.images.render(it.id, w, h, it.frame, it.dim, 0) }
-                        full?.copy(Bitmap.Config.HARDWARE, false) to full?.let { WallpaperColors.fromBitmap(it) }
+                        val full = look?.let { app.images.render(it.id, w, h, it.frame, it.dim, it.shade) }
+                        val out = full?.copy(Bitmap.Config.HARDWARE, false) to full?.let { WallpaperColors.fromBitmap(it) }
+                        full?.recycle()
+                        out
                     } catch (e: Exception) {
                         Log.e("Badal", "live wallpaper can't draw ${look?.id}", e)
                         null to null
@@ -145,6 +158,11 @@ class LiveWallpaper : WallpaperService() {
         }
 
         override fun onSurfaceRedrawNeeded(holder: SurfaceHolder) = draw()
+
+        override fun onWallpaperFlagsChanged(which: Int) {
+            val home = which and WallpaperManager.FLAG_SYSTEM != 0
+            screen.value = if (!home && which and WallpaperManager.FLAG_LOCK != 0) Screen.LOCK else Screen.HOME
+        }
 
         override fun onVisibilityChanged(visible: Boolean) {
             if (!visible) settleFade()
