@@ -17,9 +17,11 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -32,14 +34,14 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SmallFloatingActionButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -69,6 +71,7 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.toOffset
+import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.zIndex
 import io.github.vivekg7.badal.Album
 import io.github.vivekg7.badal.Design
@@ -89,11 +92,7 @@ fun AlbumsPage(
     var naming by remember { mutableStateOf(false) }
     Box(Modifier.fillMaxSize()) {
         if (state.albums.isEmpty()) {
-            Text(
-                "Make an album for each mood or season, then pick one for the home screen and one for the lock screen.",
-                Modifier.padding(24.dp),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            Text("No albums yet", Modifier.align(Alignment.Center), color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         LazyVerticalGrid(
             GridCells.Fixed(2),
@@ -106,19 +105,14 @@ fun AlbumsPage(
                     Thumb(a.images.firstOrNull(), Modifier.fillMaxWidth().aspectRatio(1f).clip(MaterialTheme.shapes.medium))
                     Text(a.name, style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 6.dp))
                     Text(
-                        usedBy(state, a) ?: plural(a.images.size, "picture"),
+                        listOfNotNull(a.images.size.toString(), usedBy(state, a)).joinToString(" · "),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
         }
-        ExtendedFloatingActionButton(
-            onClick = { naming = true },
-            icon = { Icon(Icons.Add, null) },
-            text = { Text("New album") },
-            modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp),
-        )
+        FloatingActionButton({ naming = true }, Modifier.align(Alignment.BottomEnd).padding(16.dp)) { Icon(Icons.Add, "New album") }
     }
     if (naming) {
         NameDialog("New album", "", onDone = { name ->
@@ -135,10 +129,10 @@ private fun usedBy(
     fun uses(s: Screen) = state.rotation(s).let { r -> r.enabled && (r.albumId == a.id || r.ranges.any { it.albumId == a.id }) }
     val on =
         listOfNotNull(
-            "home".takeIf { uses(Screen.HOME) },
-            "lock".takeIf { uses(Screen.LOCK) && !state.follows },
+            "Home".takeIf { uses(Screen.HOME) },
+            "Lock".takeIf { uses(Screen.LOCK) && !state.follows },
         )
-    return if (on.isEmpty()) null else "${plural(a.images.size, "picture")} · on ${on.joinToString(" & ")}"
+    return if (on.isEmpty()) null else on.joinToString(", ")
 }
 
 /**
@@ -217,7 +211,7 @@ fun AlbumPage(
                 title = {
                     Text(
                         when {
-                            reordering -> "Reorder"
+                            reordering -> "Hold and drag"
                             selected.isEmpty() -> album.name
                             else -> "${selected.size} selected"
                         },
@@ -253,11 +247,9 @@ fun AlbumPage(
             Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 SmallFloatingActionButton({ gallery = true }) { Icon(Icons.Palette, "Make a wallpaper") }
                 SmallFloatingActionButton({ folder.launch(null) }) { Icon(Icons.Folder, "Add a folder") }
-                ExtendedFloatingActionButton(
-                    onClick = { photos.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
-                    icon = { Icon(Icons.Add, null) },
-                    text = { Text("Add pictures") },
-                )
+                FloatingActionButton({ photos.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }) {
+                    Icon(Icons.Add, "Add pictures")
+                }
             }
         },
     ) { pad ->
@@ -267,26 +259,7 @@ fun AlbumPage(
                 Text("Adding $done of $total", Modifier.padding(16.dp, 4.dp), style = MaterialTheme.typography.bodySmall)
             }
             if (album.images.isEmpty() && adding == null) {
-                Text(
-                    "No pictures yet. Add some from your gallery or every picture in a folder, or make your own with the palette button.",
-                    Modifier.padding(24.dp),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            if (reordering) {
-                Text(
-                    "Hold a picture, then drag it. “In order” plays them in this order.",
-                    Modifier.padding(16.dp, 8.dp),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            } else if (album.starred.isEmpty() && album.images.size > 1) {
-                Text(
-                    "Long-press pictures and star them: Shuffle shows favourites twice as often.",
-                    Modifier.padding(16.dp, 8.dp),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                Text("No pictures yet", Modifier.padding(24.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             LazyVerticalGrid(
                 GridCells.Fixed(3),
@@ -397,66 +370,40 @@ fun AlbumPage(
             tapped = null
             app.scope.launch { app.engine.show(id, screens) }
         }
-        AlertDialog(
-            onDismissRequest = { tapped = null },
-            title = { Text("Show this picture now") },
-            text = {
-                Column {
+        Dialog({ tapped = null }) {
+            Surface(shape = MaterialTheme.shapes.extraLarge, tonalElevation = 6.dp) {
+                Column(Modifier.padding(vertical = 24.dp)) {
                     Thumb(
                         id,
                         Modifier
-                            .fillMaxWidth(
-                                0.5f,
-                            ).aspectRatio(9f / 16f)
+                            .fillMaxWidth(0.4f)
+                            .aspectRatio(9f / 16f)
                             .clip(MaterialTheme.shapes.medium)
                             .align(Alignment.CenterHorizontally),
                     )
-                    ListItem(headlineContent = { Text("On the home screen") }, modifier = Modifier.clickable { show(listOf(Screen.HOME)) })
-                    if (!state.follows) {
-                        ListItem(
-                            headlineContent = { Text("On the lock screen") },
-                            modifier = Modifier.clickable { show(listOf(Screen.LOCK)) },
-                        )
-                    }
-                    ListItem(
-                        headlineContent = { Text("On both") },
-                        modifier = Modifier.clickable { show(listOf(Screen.HOME, Screen.LOCK)) },
-                    )
+                    Spacer(Modifier.height(8.dp))
+                    Setting(Icons.Home, "Show on home", onClick = { show(listOf(Screen.HOME)) })
+                    if (!state.follows) Setting(Icons.Lock, "Show on lock", onClick = { show(listOf(Screen.LOCK)) })
+                    Setting(Icons.Split, "Show on both", onClick = { show(listOf(Screen.HOME, Screen.LOCK)) })
                     val starred = id in album.starred
-                    ListItem(
-                        headlineContent = { Text(if (starred) "Remove from favourites" else "Add to favourites") },
-                        supportingContent = { Text("Shuffle shows favourites twice as often") },
-                        modifier =
-                            Modifier.clickable {
-                                tapped = null
-                                app.scope.launch { app.library.star(album.id, setOf(id), !starred) }
-                            },
-                    )
+                    Setting(if (starred) Icons.Star else Icons.StarOutline, if (starred) "Unfavourite" else "Favourite", onClick = {
+                        tapped = null
+                        app.scope.launch { app.library.star(album.id, setOf(id), !starred) }
+                    })
                     design?.let { found ->
-                        ListItem(
-                            headlineContent = { Text("Edit design…") },
-                            supportingContent = { Text("Change its colours or pattern") },
-                            modifier =
-                                Modifier.clickable {
-                                    tapped = null
-                                    redesigning = id
-                                    draft = found.encoded()
-                                },
-                        )
+                        Setting(Icons.Palette, "Edit design", onClick = {
+                            tapped = null
+                            redesigning = id
+                            draft = found.encoded()
+                        })
                     }
-                    ListItem(
-                        headlineContent = { Text("Frame it…") },
-                        supportingContent = { Text("Choose what each screen shows of it") },
-                        modifier =
-                            Modifier.clickable {
-                                tapped = null
-                                onFrame(id)
-                            },
-                    )
+                    Setting(Icons.Crop, "Frame", onClick = {
+                        tapped = null
+                        onFrame(id)
+                    })
                 }
-            },
-            confirmButton = { TextButton({ tapped = null }) { Text("Cancel") } },
-        )
+            }
+        }
     }
     if (renaming) {
         NameDialog("Rename album", album.name, onDone = { name ->

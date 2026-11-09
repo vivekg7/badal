@@ -29,6 +29,8 @@ Read the plans before proposing a change; rejected ideas are listed there.
 
 - Anything larger than a bug fix gets a numbered plan in `docs/plans/`: the
   problem, the decision and why, and what was rejected.
+- Settings are one line each; their explanation goes in Help (`HelpPage`),
+  not under them (plan 006). A new setting gets its Help answer.
 - `make fmt` before committing; `make check` must pass.
 - Test on a device (`ANDROID_SERIAL=… make install`), not only in unit tests:
   screen-off, alarms and wallpaper setting only show their bugs there. Check

@@ -32,6 +32,9 @@ and the lock screen. _Badal_ (बदल) means "change".
 - **Pause on battery saver**, if you like: no changes on lock or on a timer
   while it's on.
 - **Quick Settings tile** and **launcher shortcuts** for Next.
+- **One line per setting**, with a Help page that explains each
+  ([plan 006](docs/plans/006_less_text.md)). Light on memory and battery
+  while it waits in the background ([plan 007](docs/plans/007_resources.md)).
 - Pictures are copied into the app, so gallery clean-ups don't break an
   album; designs are drawn into it at the screen's size. No internet permission.
 

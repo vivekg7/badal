@@ -6,6 +6,7 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.text.format.DateUtils
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -87,7 +88,11 @@ import java.time.format.TextStyle
 
 private val intervals = listOf(0, 15, 30, 60, 120, 180, 360, 720, 1440)
 
-/** One screen's settings: what it shows, when it changes, how it looks. */
+/**
+ * One screen's settings: what it shows, when it changes, how it looks. Each is
+ * one line; what they mean is in Help (plan 006). Whether Badal changes this
+ * screen at all is the switch in the top bar (Shell).
+ */
 @Composable
 fun ScreenPage(
     screen: Screen,
@@ -99,7 +104,6 @@ fun ScreenPage(
     val app = context.app
     val r = state.rotation(screen)
     val follows = screen == Screen.LOCK && state.follows
-    val name = if (screen == Screen.HOME) "home screen" else "lock screen"
 
     fun edit(change: (Rotation) -> Rotation) = app.scope.launch { app.engine.edit(screen, change) }
     var picking by remember { mutableStateOf(false) }
@@ -112,182 +116,60 @@ fun ScreenPage(
     Column(Modifier.verticalScroll(rememberScrollState()).padding(bottom = 24.dp)) {
         Preview(screen, state, follows, onFrame)
 
-        ListItem(
-            headlineContent = { Text("Change the $name") },
-            supportingContent = { Text(if (r.enabled) "Badal picks the pictures" else "Off: Badal leaves this wallpaper alone") },
-            trailingContent = { Switch(r.enabled, { on -> edit { it.copy(enabled = on) } }) },
-        )
         if (screen == Screen.LOCK) {
-            ListItem(
-                headlineContent = { Text("Same picture as the home screen") },
-                supportingContent = { Text(if (state.home.enabled) "Changes together with it" else "Turn on the home screen first") },
-                trailingContent = { Switch(r.sameAsHome, { on -> edit { it.copy(sameAsHome = on) } }, enabled = state.home.enabled) },
-            )
+            SwitchSetting(Icons.Link, "Same as home", r.sameAsHome, enabled = state.home.enabled) { on -> edit { it.copy(sameAsHome = on) } }
         }
 
         if (!follows) {
             Section("Pictures") {
                 val album = state.album(r.albumId)
-                ListItem(
-                    headlineContent = { Text("Album") },
-                    supportingContent = {
-                        Text(
-                            album?.let { "${it.name} · ${plural(it.images.size, "picture")}" } ?: "None yet: choose one",
-                        )
-                    },
-                    leadingContent = {
-                        Thumb(
-                            album?.images?.firstOrNull(),
-                            Modifier.width(40.dp).height(40.dp).clip(MaterialTheme.shapes.small),
-                        )
-                    },
-                    modifier = Modifier.clickable { if (state.albums.isEmpty()) toAlbums() else picking = true },
-                )
-                Choice(
-                    "Order",
-                    listOf("Shuffle" to Order.SHUFFLE, "In order" to Order.IN_ORDER),
-                    r.order,
-                ) { o -> edit { it.copy(order = o) } }
-                if (r.order == Order.SHUFFLE) {
-                    Text(
-                        "Every picture shows once before any repeats.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(horizontal = 16.dp),
-                    )
+                Setting(Icons.Albums, "Album", onClick = { if (state.albums.isEmpty()) toAlbums() else picking = true }) {
+                    Value(album?.name ?: "Choose")
+                }
+                Setting(Icons.Shuffle, "Order") {
+                    Segments(listOf("Shuffle" to Order.SHUFFLE, "In order" to Order.IN_ORDER), r.order) { o -> edit { it.copy(order = o) } }
                 }
             }
 
-            Section("When to change") {
-                ListItem(
-                    headlineContent = { Text("Each time the screen locks") },
-                    supportingContent = { Text("The next time you wake the phone, there's a new picture") },
-                    trailingContent = { Switch(r.onLock, { on -> edit { it.copy(onLock = on) } }) },
-                )
-                ListItem(
-                    headlineContent = { Text("Every") },
-                    supportingContent = { Text(minutesLabel(r.everyMinutes)) },
-                    modifier = Modifier.clickable { choosingInterval = true },
-                )
-                ListItem(
-                    headlineContent = { Text("By time of day") },
-                    supportingContent = {
-                        Text(
-                            if (r.ranges.isEmpty()) {
-                                "A different album for set hours, such as dark pictures at night"
-                            } else {
-                                "Outside these hours: ${state.album(r.albumId)?.name ?: "no album"}"
-                            },
-                        )
-                    },
-                )
-                r.ranges.forEachIndexed { i, range ->
-                    ListItem(
-                        headlineContent = { Text("${timeLabel(context, range.start)} – ${timeLabel(context, range.end)}") },
-                        supportingContent = { Text("${daysLabel(range.days)} · ${state.album(range.albumId)?.name ?: "Album deleted"}") },
-                        leadingContent = {
-                            Thumb(
-                                state.album(range.albumId)?.images?.firstOrNull(),
-                                Modifier.width(40.dp).height(40.dp).clip(MaterialTheme.shapes.small),
-                            )
-                        },
-                        trailingContent = {
-                            IconButton({
-                                edit {
-                                    it.copy(
-                                        ranges =
-                                            it.ranges.filterIndexed {
-                                                j,
-                                                _,
-                                                ->
-                                                j != i
-                                            },
-                                    )
-                                }
-                            }) { Icon(Icons.Close, "Remove") }
-                        },
-                    )
+            Section("Change") {
+                SwitchSetting(Icons.Lock, "On each lock", r.onLock) { on -> edit { it.copy(onLock = on) } }
+                Setting(Icons.Timer, "Every", onClick = { choosingInterval = true }) { Value(minutesLabel(r.everyMinutes)) }
+                Setting(Icons.Clock, "By the hour") {
+                    IconButton({ if (state.albums.isEmpty()) toAlbums() else addingRange = true }) { Icon(Icons.Add, "Add hours") }
                 }
-                OutlinedButton({ if (state.albums.isEmpty()) toAlbums() else addingRange = true }, Modifier.padding(horizontal = 16.dp)) {
-                    Icon(Icons.Add, null)
-                    Text("Add hours", Modifier.padding(start = 8.dp))
+                r.ranges.forEachIndexed { i, range ->
+                    Row(Modifier.fillMaxWidth().padding(start = 56.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text("${timeLabel(context, range.start)} – ${timeLabel(context, range.end)}", style = MaterialTheme.typography.bodyMedium)
+                            Text(
+                                "${daysLabel(range.days)} · ${state.album(range.albumId)?.name ?: "No album"}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        IconButton({ edit { it.copy(ranges = it.ranges.filterIndexed { j, _ -> j != i }) } }) { Icon(Icons.Close, "Remove") }
+                    }
                 }
             }
         }
 
         Section("Look") {
-            Choice(
-                "Fit",
-                listOf("Fill the screen" to Fit.FILL, "Whole picture" to Fit.WHOLE),
-                r.fit,
-            ) { f -> edit { it.copy(fit = f) } }
-            Text(
-                if (r.frames.isEmpty()) {
-                    "Or frame a picture yourself: tap it above, or in its album."
-                } else {
-                    "For all but the ${plural(r.frames.size, "picture")} you framed yourself."
-                },
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 16.dp),
-            )
-            // The slider moves freely and only sets the wallpaper when let go.
-            var dim by remember(r.dim) { mutableFloatStateOf(r.dim.toFloat()) }
-            ListItem(
-                headlineContent = { Text("Darken") },
-                supportingContent = {
-                    Slider(
-                        dim,
-                        { dim = it },
-                        valueRange = 0f..70f,
-                        steps = 13,
-                        onValueChangeFinished = { edit { it.copy(dim = dim.toInt()) } },
-                    )
-                },
-                trailingContent = { Text("${dim.toInt()}%") },
-            )
-            if (screen == Screen.LOCK) {
-                var shade by remember(r.shade) { mutableFloatStateOf(r.shade.toFloat()) }
-                ListItem(
-                    headlineContent = { Text("Shade behind the clock") },
-                    supportingContent = {
-                        Column {
-                            Text("Darkens only the top, fading out below the clock")
-                            Slider(
-                                shade,
-                                { shade = it },
-                                valueRange = 0f..70f,
-                                steps = 13,
-                                onValueChangeFinished = { edit { it.copy(shade = shade.toInt()) } },
-                            )
-                        }
-                    },
-                    trailingContent = { Text("${shade.toInt()}%") },
-                )
+            Setting(Icons.Fit, "Fit") {
+                Segments(listOf("Fill" to Fit.FILL, "Whole" to Fit.WHOLE), r.fit) { f -> edit { it.copy(fit = f) } }
             }
+            SliderSetting(Icons.Darken, "Darken", r.dim) { v -> edit { it.copy(dim = v) } }
+            if (screen == Screen.LOCK) SliderSetting(Icons.Shade, "Shade", r.shade) { v -> edit { it.copy(shade = v) } }
             if (r.enabled || live) {
-                ListItem(
-                    headlineContent = { Text("Crossfade") },
-                    supportingContent = {
-                        Text(
-                            if (live) {
-                                "On: Badal is the live wallpaper, and fades to each new picture"
-                            } else {
-                                "Fade to each new picture while you watch, instead of switching. Makes Badal this screen's live wallpaper."
-                            },
-                        )
-                    },
-                    trailingContent = {
-                        Switch(live, { on ->
-                            if (on) {
-                                chooseLive(context)
-                            } else {
-                                live = false
-                                app.scope.launch { app.engine.still(screen) }
-                            }
-                        })
-                    },
-                )
+                SwitchSetting(Icons.Fade, "Crossfade", live) { on ->
+                    if (on) {
+                        val where = if (screen == Screen.HOME) "Home screen" else "Lock screen"
+                        Toast.makeText(context, "Choose “$where”", Toast.LENGTH_LONG).show()
+                        chooseLive(context)
+                    } else {
+                        live = false
+                        app.scope.launch { app.engine.still(screen) }
+                    }
+                }
             }
         }
     }
@@ -322,7 +204,7 @@ private fun chooseLive(context: Context) {
     }
 }
 
-/** The current picture as the screen shows it, with Previous, Next and Frame. */
+/** The current picture as the screen shows it (tap to frame it), when it changes next, and Previous / Next. */
 @Composable
 private fun Preview(
     screen: Screen,
@@ -337,7 +219,7 @@ private fun Preview(
     val id = p.current
     val busy by app.engine.busy.collectAsState()
     val (sw, sh) = remember { app.images.screen() }
-    // "Changed 5 minutes ago" goes stale while the page stays open; re-read the clock now and then.
+    // "5 minutes ago" goes stale while the page stays open; re-read the clock now and then.
     val now by produceState(System.currentTimeMillis()) {
         while (true) {
             delay(30_000)
@@ -347,7 +229,7 @@ private fun Preview(
     Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
         Box(
             Modifier
-                .width(132.dp)
+                .width(120.dp)
                 .aspectRatio(sw / sh.toFloat())
                 .clip(MaterialTheme.shapes.large)
                 .clickable(enabled = id != null) { id?.let(onFrame) },
@@ -355,24 +237,13 @@ private fun Preview(
             Framed(rememberThumb(id), id?.let { r.frame(it) } ?: Framing.of(r.fit), r.dim, r.shade, Modifier.fillMaxSize())
             if (busy) CircularProgressIndicator(Modifier.align(Alignment.Center).size(32.dp), color = Color.White)
         }
-        Column(Modifier.padding(start = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(Modifier.padding(start = 20.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(
                 when {
-                    !r.enabled -> {
-                        "Not changed by Badal"
-                    }
-
-                    id == null -> {
-                        "No picture yet"
-                    }
-
-                    now - p.changedAt < Plan.MINUTE -> {
-                        "Changed just now"
-                    }
-
-                    else -> {
-                        "Changed " + DateUtils.getRelativeTimeSpanString(p.changedAt, now, DateUtils.MINUTE_IN_MILLIS)
-                    }
+                    !r.enabled -> "Off"
+                    id == null -> "No picture yet"
+                    now - p.changedAt < Plan.MINUTE -> "Just now"
+                    else -> DateUtils.getRelativeTimeSpanString(p.changedAt, now, DateUtils.MINUTE_IN_MILLIS).toString()
                 },
                 style = MaterialTheme.typography.titleMedium,
             )
@@ -382,9 +253,7 @@ private fun Preview(
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-            }
-            if (r.enabled) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     if (!follows) {
                         FilledTonalIconButton({ app.scope.launch { app.engine.previous(screen) } }, enabled = p.history.isNotEmpty() && !busy) {
                             Icon(Icons.Previous, "Previous")
@@ -429,28 +298,25 @@ private fun Days(
     }
 }
 
+/** When the screen changes next, in a few words: "Next: on lock or ~21:00". */
 private fun nextLabel(
     context: android.content.Context,
     screen: Screen,
     state: State,
     now: Long,
 ): String {
-    if (screen == Screen.LOCK && state.follows) return "Follows the home screen"
+    if (screen == Screen.LOCK && state.follows) return "With home"
     val r = state.rotation(screen)
     val p = state.progress(screen)
-    val zone = ZoneId.systemDefault()
     val paused = context.app.engine.paused(state)
+    if (paused && (r.onLock || r.everyMinutes > 0) && r.ranges.isEmpty()) return "Paused: battery saver"
     val parts =
         buildList {
-            if (r.onLock && !paused) add("on the next lock")
-            if (r.everyMinutes > 0 && !paused) {
-                val at = maxOf(p.changedAt + r.everyMinutes * Plan.MINUTE, now)
-                add("around ${momentLabel(context, at, now)}")
-            }
-            Plan.nextEdge(r, now, zone)?.let { add("at ${momentLabel(context, it, now)}") }
+            if (r.onLock && !paused) add("on lock")
+            if (r.everyMinutes > 0 && !paused) add("~" + momentLabel(context, maxOf(p.changedAt + r.everyMinutes * Plan.MINUTE, now), now))
+            Plan.nextEdge(r, now, ZoneId.systemDefault())?.let { add(momentLabel(context, it, now)) }
         }
-    val next = if (parts.isEmpty()) "Changes only when you tap Next" else "Next change " + parts.joinToString(", or ")
-    return if (paused && (r.onLock || r.everyMinutes > 0)) "Paused while battery saver is on. $next" else next
+    return if (parts.isEmpty()) "Only on Next" else "Next: " + parts.joinToString(" or ")
 }
 
 /** A time, with the day when it isn't today: "21:00", "Mon 09:00". */
@@ -465,29 +331,6 @@ private fun momentLabel(
     return if (at.toLocalDate() == Instant.ofEpochMilli(now).atZone(zone).toLocalDate()) time else "${dayName(at.dayOfWeek.value)} $time"
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun <T> Choice(
-    label: String,
-    options: List<Pair<String, T>>,
-    selected: T,
-    onSelect: (T) -> Unit,
-) {
-    Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-        Text(label, style = MaterialTheme.typography.bodyLarge)
-        Spacer(Modifier.height(8.dp))
-        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-            options.forEachIndexed { i, (text, value) ->
-                SegmentedButton(
-                    selected = value == selected,
-                    onClick = { onSelect(value) },
-                    shape = SegmentedButtonDefaults.itemShape(i, options.size),
-                ) { Text(text) }
-            }
-        }
-    }
-}
-
 @Composable
 private fun IntervalDialog(
     current: Int,
@@ -497,7 +340,7 @@ private fun IntervalDialog(
     var custom by remember { mutableStateOf(if (current in intervals) "" else current.toString()) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Change every") },
+        title = { Text("Every") },
         text = {
             Column {
                 intervals.forEach { m ->
@@ -542,7 +385,7 @@ private fun RangeDialog(
     var picking by remember { mutableStateOf(false) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Album for set hours") },
+        title = { Text("By the hour") },
         text = {
             Column {
                 ListItem(

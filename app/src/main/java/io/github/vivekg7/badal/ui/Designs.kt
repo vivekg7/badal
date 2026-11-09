@@ -205,12 +205,6 @@ fun GalleryPage(
             ) {
                 item(span = { GridItemSpan(maxLineSpan) }) {
                     Column(Modifier.padding(top = 8.dp)) {
-                        Text(
-                            "Tap one to change its colours and pattern. Long-press to pick several and add them as they are.",
-                            Modifier.padding(0.dp, 0.dp, 0.dp, 8.dp),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             OutlinedButton({ onOpen(Design()) }) { Text("Start blank") }
                             OutlinedButton({ onOpen(Presets.random(Random.nextInt())) }) {
@@ -326,14 +320,6 @@ fun DesignPage(
                 }
             }
             Column(Modifier.weight(0.58f).verticalScroll(rememberScrollState()).padding(bottom = 16.dp)) {
-                if (movable) {
-                    Text(
-                        "Drag on the picture to move its centre.",
-                        Modifier.padding(horizontal = 16.dp),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
                 Section("Background") {
                     Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Fill.entries.forEach { f -> FilterChip(d.fill == f, { d = d.copy(fill = f) }, { Text(f.label) }) }

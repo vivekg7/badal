@@ -20,16 +20,15 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -187,26 +186,18 @@ fun FramePage(
                     if (guides) Guides(screen, Modifier.fillMaxSize())
                 }
             }
-            Text(
-                if (frames[screen] == null) {
-                    "Follows this screen's Fit setting. Drag and pinch to frame it yourself."
-                } else {
-                    "Framed by hand for the ${if (screen == Screen.HOME) "home" else "lock"} screen."
-                },
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 16.dp),
-            )
-            Row(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(
+                Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 OutlinedButton({ set(Frame()) }) { Text("Fill") }
                 OutlinedButton({ set(Framing.of(Fit.WHOLE)) }) { Text("Whole") }
+                // Back to the screen's Fit; off when it already follows it.
                 TextButton({ set(null) }, enabled = frames[screen] != null) { Text("Reset") }
+                // Roughly where One UI puts them; Badal can't move them.
+                FilterChip(guides, { guides = !guides }, { Text(if (screen == Screen.HOME) "Dock" else "Clock") })
             }
-            ListItem(
-                headlineContent = { Text(if (screen == Screen.HOME) "Show the dock" else "Show the clock") },
-                supportingContent = { Text("Roughly where One UI puts it; Badal can't move it") },
-                trailingContent = { Switch(guides, { guides = it }) },
-            )
         }
     }
 }
