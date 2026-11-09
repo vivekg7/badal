@@ -32,9 +32,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -162,6 +162,7 @@ private fun DesignTile(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GalleryPage(
+    grid: LazyGridState,
     onBack: () -> Unit,
     onOpen: (Design) -> Unit,
     onAdd: (List<Design>) -> Unit,
@@ -184,7 +185,6 @@ fun GalleryPage(
             )
         },
     ) { pad ->
-        val grid = rememberLazyGridState()
         val scope = rememberCoroutineScope()
         // Grid index of each section's title: the intro, then per section its title and its designs.
         val starts =

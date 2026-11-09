@@ -182,6 +182,8 @@ fun AlbumPage(
     var gallery by rememberSaveable { mutableStateOf(false) }
     var draft by rememberSaveable { mutableStateOf<String?>(null) }
     var redesigning by rememberSaveable { mutableStateOf<Long?>(null) }
+    // Out here, so the gallery is where you left it when you come back from the designer.
+    val galleryGrid = rememberLazyGridState()
     draft?.let { json ->
         val close = {
             draft = null
@@ -198,7 +200,7 @@ fun AlbumPage(
     }
     if (gallery) {
         BackHandler { gallery = false }
-        GalleryPage(onBack = { gallery = false }, onOpen = { draft = it.encoded() }, onAdd = { list ->
+        GalleryPage(galleryGrid, onBack = { gallery = false }, onOpen = { draft = it.encoded() }, onAdd = { list ->
             gallery = false
             adding { app.library.make(album.id, list) }
         })
