@@ -106,6 +106,8 @@ private val drawn =
         ) = value.width * value.height * 4
     }
 
+fun dropDrawn() = drawn.evictAll()
+
 /** Two at a time, so a gallery full of tiles doesn't starve the preview being dragged. */
 private val painting = Dispatchers.Default.limitedParallelism(2)
 
@@ -134,7 +136,7 @@ private fun rememberDrawn(
     val ratio = screenRatio()
     val bitmap by produceState(drawn.get(d to width), d, width) {
         value = drawn.get(d to width) ?: withContext(painting) {
-            Painter.render(d, width, (width * ratio).roundToInt()).asImageBitmap().also { drawn.put(d to width, it) }
+            gpu(Painter.render(d, width, (width * ratio).roundToInt())).also { drawn.put(d to width, it) }
         }
     }
     return bitmap

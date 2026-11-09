@@ -1,6 +1,7 @@
 package io.github.vivekg7.badal.ui
 
 import android.content.Context
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.text.format.DateFormat
 import android.util.LruCache
@@ -64,7 +65,11 @@ fun resumes(): Int {
     return n
 }
 
-/** Decoded thumbnails, by picture id; 48 MB holds about seventy. */
+/**
+ * Decoded thumbnails, by picture id; 48 MB holds about seventy. They are
+ * hardware bitmaps: uploaded to the GPU once and kept there, instead of a copy
+ * on the Java heap plus another in the GPU's texture cache.
+ */
 private val thumbs =
     object : LruCache<Long, ImageBitmap>(48 * 1024 * 1024) {
         override fun sizeOf(
@@ -91,12 +96,26 @@ fun rememberThumb(id: Long?): ImageBitmap? {
                             context.app.images
                                 .thumb(it)
                                 .path,
+                            BitmapFactory.Options().apply { inPreferredConfig = Bitmap.Config.HARDWARE },
                         )?.asImageBitmap()
                         ?.also { b -> thumbs.put(it, b) }
                 }
             }
     }
     return bitmap
+}
+
+/** [b] as a hardware bitmap (see [thumbs]); the software one is let go. */
+fun gpu(b: Bitmap): ImageBitmap = (b.copy(Bitmap.Config.HARDWARE, false)?.also { b.recycle() } ?: b).asImageBitmap()
+
+/**
+ * Let go of decoded pictures once the app is out of sight. The process often
+ * stays up long after (the lock watcher, the live wallpaper), and nothing on
+ * screen needs them then.
+ */
+fun dropCaches() {
+    thumbs.evictAll()
+    dropDrawn()
 }
 
 /** A picture's thumbnail, cropped to fill [modifier]; [dim] darkens it like the wallpaper. */

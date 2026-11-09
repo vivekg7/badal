@@ -1,0 +1,6 @@
+# Compile all of Badal's own code ahead of time when the app is installed
+# (docs/plans/007_resources.md). It is small, and every path matters: the
+# alarm and screen-off paths run in a cold process, Painter is hot loops, and
+# the UI is what you wait on. The libraries ship their own profiles.
+HSPLio/github/vivekg7/badal/**->**(**)**
+Lio/github/vivekg7/badal/**;

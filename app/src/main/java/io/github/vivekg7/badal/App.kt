@@ -22,7 +22,6 @@ class App : Application() {
         images = Images(this)
         engine = Engine(this, store, images)
         library = Library(store, images, engine)
-        ShortcutActivity.publish(this)
     }
 }
 
