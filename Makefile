@@ -16,8 +16,8 @@ help:
 	@echo 'check    lint test'
 	@echo 'debug    build the debug APK (io.github.vivekg7.badal.debug, beside a release install)'
 	@echo 'install  build the debug APK and install it on ANDROID_SERIAL'
-	@echo 'release  build the minified release APK, signed when local/keystore.properties exists'
-	@echo 'archive  build, verify and keep the signed release APK in local/releases/'
+	@echo 'release  build the minified release APK and Play bundle (AAB), signed when local/keystore.properties exists'
+	@echo 'archive  build, verify and keep the signed release APK and AAB in local/releases/'
 
 fmt:
 	$(GRADLE) ktlintFormat
@@ -41,8 +41,8 @@ install:
 	$(GRADLE) :app:installDebug
 
 release:
-	$(GRADLE) :app:assembleRelease
-	@ls -l app/build/outputs/apk/release/
+	$(GRADLE) :app:assembleRelease :app:bundleRelease
+	@ls -l app/build/outputs/apk/release/ app/build/outputs/bundle/release/
 
 archive:
 	./scripts/archive-apk.sh

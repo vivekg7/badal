@@ -1,0 +1,33 @@
+Badal changes your wallpaper for you: a new picture each time the screen locks, every few minutes or hours, or by the time of day. The home screen and the lock screen each get their own album, or the lock screen follows the home screen. Badal (बदल) means "change".
+
+Your pictures, your way
+• An album for each screen, from your photos or a whole folder. A followed folder keeps the album up to date as you add photos.
+• Change on each lock, so every unlock shows a new picture, or every 15 minutes to a day.
+• Albums by time of day, such as dark pictures from 22:00 to 06:00, every day or only on the days you pick.
+• Shuffle with no repeats until every picture has shown, or play in order. Star favourites to see them twice as often. Previous and Next any time.
+• Just one picture, if you'd rather.
+
+Looks right on every screen
+• Fill the screen, or show the whole picture over a blurred copy.
+• Frame each picture for each screen: drag and pinch it into place, with a guide showing where the clock and the dock sit.
+• Darken, blur or grayscale, so the clock and icons stay readable. On the lock screen, shade only behind the clock.
+• Crossfade to each new picture on the home screen, the lock screen or both.
+
+Make your own wallpapers
+• 280 abstract designs to start from: gradients, mesh gradients and 56 patterns, from dots, rings and waves to tiles, Bauhaus and marble.
+• Change the colours, size and weight, add them to an album, or save them to your gallery as PNG.
+
+Modes
+• Use other albums while Do Not Disturb, the dark theme or charging is on.
+• Switch modes by hand from the app's shortcuts, or let Samsung's Modes and Routines switch them for you.
+
+Also
+• Home-screen widget and Quick Settings tile with Next.
+• Back up everything to one file and restore it on a new phone.
+• Pause changes while battery saver is on.
+• A Help page that explains every setting.
+
+Private by design
+Badal has no internet permission. Your pictures are copied into the app and never leave your phone: no account, no ads, no analytics, no tracking.
+
+Made for Android 15 and newer.

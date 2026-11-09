@@ -56,7 +56,7 @@ Why it is built this way, and what was rejected: [docs/plans/](docs/plans/).
 For **change on lock**, and modes that come on by themselves, to keep
 working, Badal must be allowed to run:
 
-1. Badal → Settings → Battery → allow (this sets it to Unrestricted).
+1. Badal → Settings → Battery opens Badal's App info: Battery → Unrestricted.
 2. If it still stops after a day: Settings → Battery → Background usage
    limits → Never sleeping apps → add Badal.
 3. Turn off **Dynamic lock screen** (Lock screen → Wallpaper services), or it
@@ -73,13 +73,14 @@ with only Android Studio, the Makefile uses Studio's bundled one.
 ```sh
 make check                              # ktlint, Android lint, unit tests
 ANDROID_SERIAL=emulator-5554 make install
-make release                            # minified APK, signed if the key is set up
-make archive                            # build, verify, keep it in local/releases/
+make release                            # minified APK and Play bundle (AAB), signed if the key is set up
+make archive                            # build, verify, keep both in local/releases/
 ```
 
 ### Signing
 
-`assembleRelease` signs the APK when `local/keystore.properties` exists:
+`assembleRelease` and `bundleRelease` sign the APK and the AAB when
+`local/keystore.properties` exists:
 
 ```properties
 storeFile=local/badal-release.jks
@@ -91,16 +92,18 @@ keyPassword=…
 `local/` is gitignored, so neither the key nor its password reaches the
 repository. Without the file, release still builds, unsigned.
 
-**The key cannot be recovered.** Lose it and no installed copy of Badal can be
-updated, because Android refuses an update signed by a different key. Keep a
-backup off this machine.
+**The key cannot be recovered.** Lose it and no sideloaded copy of Badal can
+be updated, because Android refuses an update signed by a different key. Keep a
+backup off this machine. On Google Play it is only the upload key: Play signs
+what it delivers with its own key ([plan 011](docs/plans/011_play_store.md)),
+so a Play install and a sideloaded one can't update each other.
 
 ### Archiving a release
 
-`make archive` (`scripts/archive-apk.sh`) builds the release APK and copies it
-into `local/releases/v<version>/` as `badal-v<version>.apk`, with a `.sha256`
-and the R8 `mapping.txt` that turns a minified stack trace from that build back
-into names. The version is read from the built APK, so the name cannot disagree
+`make archive` (`scripts/archive-apk.sh`) builds the release APK and AAB and
+copies them into `local/releases/v<version>/` as `badal-v<version>.apk` and
+`.aab`, each with a `.sha256`, and the R8 `mapping.txt` that turns a minified
+stack trace from that build back into names (upload it to Play with the AAB). The version is read from the built APK, so the name cannot disagree
 with what shipped.
 
 It is not wired into `assembleRelease`, so a build made while working cannot
@@ -108,6 +111,14 @@ overwrite an archived release. The script also refuses an unsigned APK,
 archives a dirty tree as `v<version>-dirty-g<commit>/`, and never replaces an
 existing archive without `--force`. Bump `versionCode` and `versionName` in
 `app/build.gradle.kts` for each release.
+
+### Google Play
+
+The store listing (texts, icon, feature graphic, screenshots) is in
+`fastlane/metadata/android/en-US/`, and the privacy policy in
+[PRIVACY.md](PRIVACY.md). What to fill in on Play Console, and why the
+listing and permissions are as they are:
+[plan 011](docs/plans/011_play_store.md).
 
 ## Credits
 

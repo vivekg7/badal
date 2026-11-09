@@ -113,7 +113,9 @@ fun SettingsPage(
         }
 
         Section("Background") {
-            // Samsung stops restricted apps, and changes on lock stop with them.
+            // Samsung stops restricted apps, and changes on lock stop with them. The row opens
+            // Badal's App info, whose battery setting offers Unrestricted: Play limits the
+            // one-tap prompt to a few kinds of app (docs/plans/011_play_store.md).
             val warn = !unrestricted && LockWatcher.needed(state)
             Setting(
                 Icons.Battery,
@@ -125,7 +127,7 @@ fun SettingsPage(
                     } else {
                         (
                             {
-                                context.startActivity(Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, uri))
+                                context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, uri))
                             }
                         )
                     },

@@ -64,12 +64,10 @@ android {
     }
 
     lint {
-        // BatteryLife: Play limits asking to skip battery optimisation, but
-        // change-on-lock needs it on Samsung (docs/plans/001_wallpaper_rotator.md).
         // UseKtx: core-ktx is not a direct dependency, and the plain calls read fine.
         // DataExtractionRules: backup is off on purpose (AndroidManifest.xml).
         // AndroidGradlePluginVersion: versions move with galla's, not one by one.
-        disable += setOf("BatteryLife", "UseKtx", "DataExtractionRules", "AndroidGradlePluginVersion")
+        disable += setOf("UseKtx", "DataExtractionRules", "AndroidGradlePluginVersion")
     }
 
     dependenciesInfo {

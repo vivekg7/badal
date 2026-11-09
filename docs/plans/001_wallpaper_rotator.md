@@ -38,7 +38,8 @@ delivered only to receivers registered by a running process, so
 `LockWatcher` is a foreground service (type `specialUse`) that runs only while
 a screen uses this trigger. Badal never asks for notification permission, so
 on Android 13+ the service's notification is hidden. Samsung stops
-battery-restricted apps, so the Settings tab asks to be unrestricted.
+battery-restricted apps, so the Settings tab asks to be unrestricted (since
+plan [011](011_play_store.md) by opening App info, not the one-tap prompt).
 
 **Timers and time ranges use one AlarmManager alarm**, recalculated after
 every change (`Plan.nextAlarm`). Interval changes use a non-waking `RTC`
@@ -115,7 +116,8 @@ reordering, favourites, day-of-week ranges and the battery-saver pause by
 [006](006_less_text.md); the resource work by [007](007_resources.md); the
 Designs tab and saving to the gallery by [008](008_designs_tab_export.md);
 modes by [009](009_modes.md); one-picture sources, Blur and Grayscale,
-followed folders, backups and the widget by [010](010_more.md).
+followed folders, backups and the widget by [010](010_more.md); publishing on
+Google Play by [011](011_play_store.md).
 
 ## Ideas for later
 

@@ -1,17 +1,18 @@
 #!/usr/bin/env bash
 #
-# Build the signed release APK and archive it into its release's own folder under
-# local/releases/, under a name that says exactly what it is. Run at will; nothing in
-# the build calls this.
+# Build the signed release APK and app bundle (AAB) and archive them into their release's
+# own folder under local/releases/, under a name that says exactly what it is. Run at
+# will; nothing in the build calls this.
 #
 #   ./scripts/archive-apk.sh              build, verify, archive
 #   ./scripts/archive-apk.sh --force      allow replacing an existing archive
-#   ./scripts/archive-apk.sh --no-build   use the APK already on disk
+#   ./scripts/archive-apk.sh --no-build   use the APK and AAB already on disk
 #
-# Each archive is three files sharing one prefix: the APK, a .sha256, and the R8
-# mapping.txt that turns an obfuscated stack trace from that build back into names. The
-# mapping lives in app/build/ and a clean wipes it, so it is worth nothing unless it is
-# kept with the APK it belongs to.
+# Each archive is files sharing one prefix: the APK (sideloading), the AAB (Google Play,
+# signed with the same key, which Play knows as the upload key), a .sha256 for each, and
+# the R8 mapping.txt that turns an obfuscated stack trace from that build back into names
+# (upload it to Play with the bundle). The mapping lives in app/build/ and a clean wipes
+# it, so it is worth nothing unless it is kept with the build it belongs to.
 #
 # A clean checkout produces "local/releases/v0.1.0/badal-v0.1.0.apk". A dirty working
 # tree produces "local/releases/v0.1.0-dirty-g1a2b3c4/badal-v0.1.0-dirty-g1a2b3c4.apk",
@@ -37,6 +38,7 @@ done
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
 APK=app/build/outputs/apk/release/app-release.apk
+AAB=app/build/outputs/bundle/release/app-release.aab
 MAP=app/build/outputs/mapping/release/mapping.txt
 
 # Gradle and apksigner need a JDK; a Mac with only Android Studio has one inside the app.
@@ -48,8 +50,10 @@ SDK="${SDK:-${ANDROID_HOME:-$HOME/Library/Android/sdk}}"
 TOOLS=$(ls -d "$SDK"/build-tools/* 2>/dev/null | sort -V | tail -1 || true)
 [ -n "$TOOLS" ] || { echo "error: no Android build-tools under $SDK" >&2; exit 1; }
 
-if [ "$BUILD" = 1 ]; then ./gradlew -q :app:assembleRelease; fi
-[ -f "$APK" ] || { echo "error: $APK not found (drop --no-build?)" >&2; exit 1; }
+if [ "$BUILD" = 1 ]; then ./gradlew -q :app:assembleRelease :app:bundleRelease; fi
+for f in "$APK" "$AAB"; do
+    [ -f "$f" ] || { echo "error: $f not found (drop --no-build?)" >&2; exit 1; }
+done
 
 # The version comes from the built APK, never from build.gradle.kts, so the name cannot
 # disagree with the manifest that shipped.
@@ -64,6 +68,14 @@ SIGNER=$("$TOOLS/apksigner" verify --print-certs "$APK" 2>/dev/null |
     sed -n 's/^Signer #1 certificate SHA-256 digest: //p' || true)
 [ -n "$SIGNER" ] || {
     echo "error: $APK is not signed. Add local/keystore.properties (README) and rebuild." >&2
+    exit 1
+}
+# The bundle is jar-signed; keytool prints its certificate. Same key as the APK, or Play
+# refuses the upload.
+AAB_SIGNER=$("$JAVA_HOME/bin/keytool" -printcert -jarfile "$AAB" 2>/dev/null |
+    sed -n 's/^[[:space:]]*SHA256: //p' | head -1 | tr -d ':' | tr 'A-F' 'a-f' || true)
+[ "$AAB_SIGNER" = "$SIGNER" ] || {
+    echo "error: $AAB is not signed with the APK's key ($SIGNER), got '${AAB_SIGNER:-none}'." >&2
     exit 1
 }
 [ -f "$MAP" ] || { echo "error: $MAP not found; it is written by R8 (drop --no-build)." >&2; exit 1; }
@@ -87,8 +99,12 @@ mkdir -p "$DEST"
 cp "$APK" "$TARGET"
 shasum -a 256 "$TARGET" | awk '{print $1}' >"$TARGET.sha256"
 cp "$MAP" "$TARGET.mapping.txt"
+BUNDLE="${TARGET%.apk}.aab"
+cp "$AAB" "$BUNDLE"
+shasum -a 256 "$BUNDLE" | awk '{print $1}' >"$BUNDLE.sha256"
 
 echo "archived: $TARGET  ($(wc -c <"$TARGET" | tr -d ' ') bytes)"
+echo "bundle:   $BUNDLE  ($(wc -c <"$BUNDLE" | tr -d ' ') bytes)"
 echo "version:  $VNAME ($VCODE)"
 echo "sha256:   $(cat "$TARGET.sha256")"
 echo "signer:   $SIGNER"

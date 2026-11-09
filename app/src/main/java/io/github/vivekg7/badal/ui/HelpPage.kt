@@ -129,8 +129,8 @@ private val help =
                     "When home and lock use the same album, they never show the same picture at once.",
                 "Battery: Restricted or Unrestricted?" to
                     "Changing on each lock needs Badal to wait in the background for the screen to turn off, and so do modes " +
-                    "that come on by themselves. Samsung stops restricted apps, and those changes stop with them. Tap to " +
-                    "allow it. Nothing else needs this.",
+                    "that come on by themselves. Samsung stops restricted apps, and those changes stop with them. Tap it, " +
+                    "open the app's battery setting there and choose Unrestricted. Nothing else needs this.",
                 "Shortcuts and the widget" to
                     "The Quick Settings tile puts the next picture on every screen Badal changes. Long-press the app's icon " +
                     "for next home, next lock and the modes. The widget (Settings, or long-press the home screen and " +
