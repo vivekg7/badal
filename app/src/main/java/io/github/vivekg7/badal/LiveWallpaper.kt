@@ -38,8 +38,7 @@ class LiveWallpaper : WallpaperService() {
     private data class Look(
         val id: Long,
         val frame: Frame,
-        val dim: Int,
-        val shade: Int,
+        val finish: Finish,
     )
 
     private inner class Live : Engine() {
@@ -66,7 +65,7 @@ class LiveWallpaper : WallpaperService() {
                 combine(app.store.state, screen) { st, s ->
                     val r = st.rotation(s)
                     // A lock screen Badal doesn't change yet still shows something: the home picture.
-                    (st.progress(s).current ?: st.homeNow.current)?.let { Look(it, r.frame(it), r.dim, r.shade) }
+                    (st.progress(s).current ?: st.homeNow.current)?.let { Look(it, r.frame(it), r.finish) }
                 }
             scope.launch {
                 // Conflated: after several quick Nexts, draw only the last.
@@ -87,7 +86,7 @@ class LiveWallpaper : WallpaperService() {
                     try {
                         // Colours from the full picture, then a hardware copy that is
                         // uploaded to the GPU once instead of on every frame of the fade.
-                        val full = look?.let { app.images.render(it.id, w, h, it.frame, it.dim, it.shade) }
+                        val full = look?.let { app.images.render(it.id, w, h, it.frame, it.finish) }
                         val out = full?.copy(Bitmap.Config.HARDWARE, false) to full?.let { WallpaperColors.fromBitmap(it) }
                         full?.recycle()
                         out
@@ -97,7 +96,7 @@ class LiveWallpaper : WallpaperService() {
                     }
                 }
             // Fade only when someone can see it, and only to a different picture:
-            // a new frame or Darken setting replaces the picture in place.
+            // a new frame or finish (Darken, Blur…) replaces the picture in place.
             val fade = isVisible && shown != null && look?.id != shownId
             leaving = if (fade) shown else null
             fadeFrom = SystemClock.uptimeMillis()

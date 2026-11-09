@@ -15,6 +15,7 @@ class App : Application() {
     lateinit var images: Images
     lateinit var engine: Engine
     lateinit var library: Library
+    lateinit var backup: Backup
 
     override fun onCreate() {
         super.onCreate()
@@ -22,6 +23,7 @@ class App : Application() {
         images = Images(this)
         engine = Engine(this, store, images)
         library = Library(store, images, engine)
+        backup = Backup(this, store, engine)
     }
 }
 

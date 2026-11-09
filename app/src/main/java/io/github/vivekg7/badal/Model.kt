@@ -29,6 +29,50 @@ data class Album(
     val images: List<Long> = emptyList(),
     /** Favourites: Shuffle shows each of these twice a round. */
     val starred: Set<Long> = emptySet(),
+    /** A folder the album follows (a tree URI): its new pictures join, deleted ones leave (plan 010). */
+    val folder: String? = null,
+    /** For [folder]: each of its documents already seen, and the picture it became. */
+    val docs: Map<String, Long> = emptyMap(),
+)
+
+/** What switches a [Mode] on by itself. HAND waits for the user: in the app, a shortcut or a Samsung routine (plan 009). */
+@Serializable
+enum class Cue { HAND, QUIET, DARK, CHARGING }
+
+/** What the phone is doing, as far as an app can tell without asking for permissions. */
+data class Sense(
+    /** Do Not Disturb, or a mode that silences the phone, is on. */
+    val quiet: Boolean = false,
+    val dark: Boolean = false,
+    val charging: Boolean = false,
+) {
+    fun holds(c: Cue) =
+        when (c) {
+            Cue.HAND -> false
+            Cue.QUIET -> quiet
+            Cue.DARK -> dark
+            Cue.CHARGING -> charging
+        }
+}
+
+/** Other albums for a while: [home] and [lock] (null leaves that screen as it is) while [cue] holds, or while switched on by hand. */
+@Serializable
+data class Mode(
+    val id: Long,
+    val name: String,
+    val cue: Cue = Cue.HAND,
+    val home: Long? = null,
+    val lock: Long? = null,
+) {
+    fun album(s: Screen) = if (s == Screen.HOME) home else lock
+}
+
+/** How a screen dresses every picture, after its frame: the parts of [Rotation] a redraw depends on. */
+data class Finish(
+    val dim: Int = 0,
+    val shade: Int = 0,
+    val blur: Int = 0,
+    val gray: Int = 0,
 )
 
 /**
@@ -63,6 +107,8 @@ data class TimeRange(
 data class Rotation(
     val enabled: Boolean = false,
     val albumId: Long? = null,
+    /** Just this one picture, in place of [albumId] (plan 010). Time ranges and modes still apply. */
+    val picture: Long? = null,
     /** Lock screen only: show the home screen's picture, changed with it. */
     val sameAsHome: Boolean = false,
     val order: Order = Order.SHUFFLE,
@@ -78,10 +124,15 @@ data class Rotation(
     val dim: Int = 0,
     /** Lock screen: darken by this many percent behind the clock, fading out below it (plan 003). */
     val shade: Int = 0,
+    /** Blur by this many percent, and take out this much of the colour (plan 010). */
+    val blur: Int = 0,
+    val gray: Int = 0,
     /** Pictures the user framed by hand for this screen, by id. */
     val frames: Map<Long, Frame> = emptyMap(),
 ) {
     fun frame(id: Long) = frames[id] ?: Framing.of(fit)
+
+    val finish get() = Finish(dim, shade, blur, gray)
 
     /** With [id] framed as [f]; null puts it back on [fit]. */
     fun framed(
@@ -114,6 +165,11 @@ data class State(
     val distinct: Boolean = true,
     /** While battery saver is on, skip changes on lock and on a timer; time-of-day albums still switch. */
     val saverPause: Boolean = false,
+    val modes: List<Mode> = emptyList(),
+    /** The mode switched on by hand; it wins over any whose cue holds. */
+    val handMode: Long? = null,
+    /** When the followed folders were last looked through. */
+    val scannedAt: Long = 0,
     val nextId: Long = 1,
 ) {
     fun rotation(s: Screen) = if (s == Screen.HOME) home else lock
@@ -131,6 +187,15 @@ data class State(
     ) = if (s == Screen.HOME) copy(homeNow = p) else copy(lockNow = p)
 
     fun album(id: Long?) = albums.firstOrNull { it.id == id }
+
+    /**
+     * The pictures a source names: an album's, or a single picture's on its own.
+     * Album and picture ids never clash: both come from [nextId].
+     */
+    fun pool(id: Long?): Album? = album(id) ?: id?.takeIf { albums.any { a -> it in a.images } }?.let { Album(it, "", listOf(it)) }
+
+    /** The mode in force: the one switched on by hand, else the first whose cue holds. */
+    fun mode(sense: Sense) = modes.firstOrNull { it.id == handMode && it.cue == Cue.HAND } ?: modes.firstOrNull { sense.holds(it.cue) }
 
     /** The lock screen copies the home screen's picture. */
     val follows get() = lock.enabled && lock.sameAsHome && home.enabled
@@ -167,7 +232,25 @@ object Plan {
     ): Long? {
         val at = Instant.ofEpochMilli(t).atZone(zone)
         val m = at.hour * 60 + at.minute
-        return r.ranges.firstOrNull { it.holds(at.dayOfWeek.value, m) }?.albumId ?: r.albumId
+        return r.ranges.firstOrNull { it.holds(at.dayOfWeek.value, m) }?.albumId ?: r.picture ?: r.albumId
+    }
+
+    /** Where [s] takes its pictures from at [t]: the mode in force, if it names an album for [s], else [albumAt]. */
+    fun sourceAt(
+        st: State,
+        s: Screen,
+        t: Long,
+        zone: ZoneId,
+        sense: Sense = Sense(),
+    ): Long? = st.mode(sense)?.album(s) ?: albumAt(st.rotation(s), t, zone)
+
+    /** Whether [s] could ever show another picture; not when all it may show is one picture. */
+    fun rotates(
+        st: State,
+        s: Screen,
+    ): Boolean {
+        val r = st.rotation(s)
+        return r.picture == null || r.ranges.isNotEmpty() || st.modes.any { it.album(s) != null }
     }
 
     /**
@@ -206,11 +289,12 @@ object Plan {
         t: Long,
         zone: ZoneId,
         paused: Boolean = false,
+        sense: Sense = Sense(),
     ): Boolean {
         val r = st.rotation(s)
         val p = st.progress(s)
         if (!paused && r.everyMinutes > 0 && t >= p.changedAt + r.everyMinutes * MINUTE - SLACK) return true
-        return albumAt(r, t, zone) != p.album
+        return sourceAt(st, s, t, zone, sense) != p.album
     }
 
     /**
@@ -225,12 +309,14 @@ object Plan {
         t: Long,
         zone: ZoneId,
         paused: Boolean = false,
+        sense: Sense = Sense(),
     ): Alarm? {
         val alarms =
             st.driven.flatMap { s ->
                 val r = st.rotation(s)
                 val p = st.progress(s)
-                val hasImages = st.album(albumAt(r, t, zone))?.images?.isNotEmpty() == true
+                // One picture never changes, so an interval has nothing to do.
+                val hasImages = (st.pool(sourceAt(st, s, t, zone, sense))?.images?.size ?: 0) > 1
                 val every = r.everyMinutes * MINUTE
                 listOfNotNull(
                     if (r.everyMinutes > 0 && hasImages) Alarm(maxOf(p.changedAt + every, t + if (paused) every else MINUTE), false) else null,
@@ -249,14 +335,15 @@ object Plan {
         t: Long,
         zone: ZoneId,
         random: Random = Random,
+        sense: Sense = Sense(),
     ): State {
         var out = st
         // Home first, so the lock screen can steer clear of home's new picture.
         for (s in listOf(Screen.HOME, Screen.LOCK)) {
             if (s !in screens || s !in out.driven) continue
             val r = out.rotation(s)
-            val album = albumAt(r, t, zone)
-            val a = out.album(album)
+            val album = sourceAt(out, s, t, zone, sense)
+            val a = out.pool(album)
             val avoid = if (out.distinct && out.rotation(s.other()).enabled) out.progress(s.other()).current else null
             val p = pick(a?.images.orEmpty(), r.order, out.progress(s), album, avoid, random, a?.starred.orEmpty()) ?: continue
             out = out.with(s, p.copy(changedAt = t))

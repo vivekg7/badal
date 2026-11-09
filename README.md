@@ -29,6 +29,16 @@ and the lock screen. _Badal_ (बदल) means "change".
   and spirals; stripes, waves, contours; tiles, Bauhaus, marble…). Start from
   any of 280 premade designs, change colours, size and weight, and edit
   them again later ([plan 005](docs/plans/005_designs.md)).
+- **Designs in their own tab**, a tap from anywhere; add any to an album, or
+  **save it to your gallery**, as you can any picture
+  ([plan 008](docs/plans/008_designs_tab_export.md)).
+- **Modes**: other albums while Do Not Disturb, the dark theme or charging is
+  on, or switched by hand. Samsung's Modes and Routines can switch them
+  through Badal's shortcuts ([plan 009](docs/plans/009_modes.md)).
+- **Just one picture** on a screen, if you like. **Blur** and **Grayscale**
+  beside Darken. **Albums that follow a folder**, so new photos in it join.
+  **Backup and restore** everything to one zip file. A **home-screen widget**
+  with Previous and Next ([plan 010](docs/plans/010_more.md)).
 - **Pause on battery saver**, if you like: no changes on lock or on a timer
   while it's on.
 - **Quick Settings tile** and **launcher shortcuts** for Next.
@@ -36,13 +46,15 @@ and the lock screen. _Badal_ (बदल) means "change".
   ([plan 006](docs/plans/006_less_text.md)). Light on memory and battery
   while it waits in the background ([plan 007](docs/plans/007_resources.md)).
 - Pictures are copied into the app, so gallery clean-ups don't break an
-  album; designs are drawn into it at the screen's size. No internet permission.
+  album; designs are drawn into it at the screen's size. No internet
+  permission, and no new permission for any of the above.
 
 Why it is built this way, and what was rejected: [docs/plans/](docs/plans/).
 
 ## Samsung setup
 
-For **change on lock** to keep working, Badal must be allowed to run:
+For **change on lock**, and modes that come on by themselves, to keep
+working, Badal must be allowed to run:
 
 1. Badal → Settings → Battery → allow (this sets it to Unrestricted).
 2. If it still stops after a day: Settings → Battery → Background usage

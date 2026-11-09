@@ -5,15 +5,18 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.text.format.DateFormat
 import android.util.LruCache
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -21,11 +24,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -61,8 +67,10 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import io.github.vivekg7.badal.Album
+import io.github.vivekg7.badal.App
 import io.github.vivekg7.badal.app
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.DayOfWeek
 import java.time.LocalTime
@@ -70,6 +78,7 @@ import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.util.Locale
 import kotlin.math.roundToInt
+import androidx.compose.foundation.lazy.grid.items as gridItems
 
 /** Counts the activity's resumes: key a value the system's settings can change on it, to read it again on every return. */
 @Composable
@@ -186,33 +195,78 @@ fun daysLabel(days: Set<Int>): String =
         else -> days.sorted().joinToString(", ", transform = ::dayName)
     }
 
+/**
+ * Choose an album. With [onNew], a button to make one; with [onPicture], each
+ * album also opens to choose a single picture from it (plan 010).
+ */
 @Composable
 fun AlbumPicker(
     albums: List<Album>,
     onPick: (Album) -> Unit,
     onDismiss: () -> Unit,
+    onNew: (() -> Unit)? = null,
+    onPicture: ((Album, Long) -> Unit)? = null,
 ) {
+    var inside by remember { mutableStateOf<Album?>(null) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Choose an album") },
+        title = { Text(inside?.name ?: "Choose an album") },
         text = {
-            if (albums.isEmpty()) {
-                Text("No albums yet. Make one in the Albums tab.")
-            } else {
-                LazyColumn {
-                    items(albums, key = { it.id }) { a ->
-                        ListItem(
-                            headlineContent = { Text(a.name) },
-                            supportingContent = { Text(plural(a.images.size, "picture")) },
-                            leadingContent = { Thumb(a.images.firstOrNull(), Modifier.size(48.dp).clip(MaterialTheme.shapes.small)) },
-                            modifier = Modifier.clickable { onPick(a) },
-                        )
+            val a = inside
+            when {
+                a != null -> {
+                    LazyVerticalGrid(GridCells.Fixed(3), horizontalArrangement = Arrangement.spacedBy(4.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        gridItems(a.images, key = { it }) { id ->
+                            Thumb(id, Modifier.aspectRatio(9f / 16f).clip(MaterialTheme.shapes.small).clickable { onPicture?.invoke(a, id) })
+                        }
+                    }
+                }
+
+                albums.isEmpty() -> {
+                    Text("No albums yet. Make one in the Albums tab.")
+                }
+
+                else -> {
+                    LazyColumn {
+                        items(albums, key = { it.id }) { a ->
+                            ListItem(
+                                headlineContent = { Text(a.name) },
+                                supportingContent = { Text(plural(a.images.size, "picture")) },
+                                leadingContent = { Thumb(a.images.firstOrNull(), Modifier.size(48.dp).clip(MaterialTheme.shapes.small)) },
+                                trailingContent = {
+                                    if (onPicture != null && a.images.isNotEmpty()) {
+                                        IconButton({ inside = a }) { Icon(Icons.Image, "Choose one picture") }
+                                    }
+                                },
+                                modifier = Modifier.clickable { onPick(a) },
+                            )
+                        }
                     }
                 }
             }
         },
-        confirmButton = { TextButton(onDismiss) { Text("Cancel") } },
+        confirmButton = {
+            when {
+                inside != null -> TextButton({ inside = null }) { Text("Back") }
+                onNew != null -> TextButton(onNew) { Text("New album") }
+            }
+        },
+        dismissButton = { TextButton(onDismiss) { Text("Cancel") } },
     )
+}
+
+/** Saves to the phone's gallery off the main thread with [save], which returns how many it saved, then says so. */
+fun export(
+    context: Context,
+    save: (App) -> Int,
+) {
+    val app = context.app
+    app.scope.launch(Dispatchers.IO) {
+        val n = save(app)
+        withContext(Dispatchers.Main) {
+            Toast.makeText(context, if (n == 0) "Couldn't save" else "Saved to Pictures/Badal", Toast.LENGTH_SHORT).show()
+        }
+    }
 }
 
 @Composable

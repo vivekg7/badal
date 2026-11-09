@@ -48,7 +48,7 @@
             android:foregroundServiceType="specialUse">
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="Changes the wallpaper each time the screen turns off; Android sends that event only to a running app." />
+                android:value="Changes the wallpaper each time the screen turns off, or when Do Not Disturb, charging or the dark theme change; Android sends those events only to a running app." />
         </service>
 
         <!-- Crossfade: the home screen as a live wallpaper (docs/plans/004_crossfade.md). -->
@@ -78,6 +78,19 @@
                 android:name="android.service.quicksettings.TOGGLEABLE_TILE"
                 android:value="false" />
         </service>
+
+        <!-- Home-screen widget: the picture now, Previous and Next (docs/plans/010_more.md). -->
+        <receiver
+            android:name=".NextWidget"
+            android:exported="false"
+            android:label="@string/app_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget" />
+        </receiver>
 
         <receiver
             android:name=".AlarmReceiver"

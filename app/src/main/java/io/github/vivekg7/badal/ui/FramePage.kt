@@ -43,12 +43,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.BlurEffect
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -58,9 +63,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import io.github.vivekg7.badal.Finish
 import io.github.vivekg7.badal.Fit
 import io.github.vivekg7.badal.Frame
 import io.github.vivekg7.badal.Framing
+import io.github.vivekg7.badal.Images
 import io.github.vivekg7.badal.Screen
 import io.github.vivekg7.badal.Shade
 import io.github.vivekg7.badal.State
@@ -72,27 +79,41 @@ import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import kotlin.math.roundToInt
 
-/** A picture placed by [frame] over a blurred copy of itself, then darkened by [dim] and [shade]: the wallpaper, small. */
+/** A picture placed by [frame] over a blurred copy of itself, then finished as [finish] says: the wallpaper, small. */
 @Composable
 fun Framed(
     bitmap: ImageBitmap?,
     frame: Frame,
-    dim: Int,
-    shade: Int,
+    finish: Finish,
     modifier: Modifier = Modifier,
 ) {
+    val (dim, shade, blur, gray) = finish
+    val app = LocalContext.current.app
+    val width = remember { app.images.screen().first }
+    val colours = if (gray > 0) ColorFilter.colorMatrix(ColorMatrix().apply { setToSaturation(1 - gray / 100f) }) else null
     Box(modifier.background(MaterialTheme.colorScheme.surfaceVariant)) {
         if (bitmap != null) {
-            Image(bitmap, null, Modifier.fillMaxSize().blur(16.dp), contentScale = ContentScale.Crop)
+            Box(
+                Modifier.fillMaxSize().graphicsLayer {
+                    // As much blur, for its size, as the wallpaper gets (Images.render).
+                    val r = Images.blurRadius(blur, width) * size.width
+                    if (r > 0) renderEffect = BlurEffect(r, r, TileMode.Clamp)
+                },
+            ) {
+                Image(bitmap, null, Modifier.fillMaxSize().blur(16.dp), contentScale = ContentScale.Crop, colorFilter = colours)
+                Canvas(Modifier.fillMaxSize()) {
+                    drawRect(Color.Black.copy(alpha = 60 / 255f))
+                    val p = Framing.place(bitmap.width, bitmap.height, size.width, size.height, frame)
+                    drawImage(
+                        bitmap,
+                        dstOffset = IntOffset(p.left.roundToInt(), p.top.roundToInt()),
+                        dstSize = IntSize((bitmap.width * p.scale).roundToInt(), (bitmap.height * p.scale).roundToInt()),
+                        filterQuality = FilterQuality.Medium,
+                        colorFilter = colours,
+                    )
+                }
+            }
             Canvas(Modifier.fillMaxSize()) {
-                drawRect(Color.Black.copy(alpha = 60 / 255f))
-                val p = Framing.place(bitmap.width, bitmap.height, size.width, size.height, frame)
-                drawImage(
-                    bitmap,
-                    dstOffset = IntOffset(p.left.roundToInt(), p.top.roundToInt()),
-                    dstSize = IntSize((bitmap.width * p.scale).roundToInt(), (bitmap.height * p.scale).roundToInt()),
-                    filterQuality = FilterQuality.Medium,
-                )
                 if (dim > 0) drawRect(Color.Black.copy(alpha = dim / 100f))
                 if (shade > 0) {
                     val stops = Shade.stops.map { (at, k) -> at to Color.Black.copy(alpha = shade * k / 100f) }.toTypedArray()
@@ -182,7 +203,7 @@ fun FramePage(
                             })
                         },
                 ) {
-                    Framed(shown, frame, r.dim, r.shade, Modifier.fillMaxSize())
+                    Framed(shown, frame, r.finish, Modifier.fillMaxSize())
                     if (guides) Guides(screen, Modifier.fillMaxSize())
                 }
             }

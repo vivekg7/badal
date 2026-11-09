@@ -78,7 +78,8 @@ that look, keeping your colours.
 
 **Where it lives:**
 
-- **Gallery.** The palette button in an album opens it. Chips jump to each
+- **Gallery.** The palette button in an album opens it (and since
+  [008](008_designs_tab_export.md), the Designs tab). Chips jump to each
   section. Tap a design to change it; long-press to pick several and add
   them as they are.
 - **Designer.** A live preview over the settings: drag on it to move a

@@ -207,4 +207,46 @@ class PlanTest {
         assertEquals(Alarm(at(11, 30), false), Plan.nextAlarm(st, at(10, 30), zone, paused = true))
         assertEquals(Alarm(at(10, 31), false), Plan.nextAlarm(st, at(10, 30), zone))
     }
+
+    @Test
+    fun modesWinOverTheScreensAlbumWhileTheyHold() {
+        val night = Mode(300, "Night", Cue.DARK, home = 200)
+        val st = base.copy(modes = listOf(night), home = base.home.copy(ranges = listOf(TimeRange(9 * 60, 17 * 60, 100))))
+        assertEquals(200L, Plan.sourceAt(st, Screen.HOME, at(10), zone, Sense(dark = true)))
+        assertEquals(100L, Plan.sourceAt(st, Screen.HOME, at(10), zone, Sense()))
+        // A mode with no album for a screen leaves it as it is.
+        assertEquals(100L, Plan.sourceAt(st, Screen.LOCK, at(10), zone, Sense(dark = true)))
+        // Its cue starting is a change of album, so the screen is due.
+        val shown = st.copy(homeNow = Progress(current = 1, album = 100, changedAt = at(9)))
+        assertTrue(Plan.due(shown, Screen.HOME, at(10), zone, sense = Sense(dark = true)))
+        assertFalse(Plan.due(shown, Screen.HOME, at(10), zone))
+    }
+
+    @Test
+    fun aModeSwitchedOnByHandWinsOverCues() {
+        val work = Mode(300, "Work", Cue.HAND, home = 100, lock = 100)
+        val quiet = Mode(301, "Quiet", Cue.QUIET, home = 200)
+        val st = base.copy(modes = listOf(quiet, work), handMode = 300, home = base.home.copy(albumId = 999))
+        assertEquals(100L, Plan.sourceAt(st, Screen.HOME, at(10), zone, Sense(quiet = true)))
+        assertEquals(200L, Plan.sourceAt(st.copy(handMode = null), Screen.HOME, at(10), zone, Sense(quiet = true)))
+        // A mode changed from By hand to a cue follows the cue, though it was on.
+        val changed = st.copy(modes = listOf(work.copy(cue = Cue.DARK)))
+        assertEquals(999L, Plan.sourceAt(changed, Screen.HOME, at(10), zone, Sense()))
+        // A hand mode never comes on by itself.
+        assertEquals(999L, Plan.sourceAt(st.copy(handMode = null), Screen.HOME, at(10), zone, Sense(dark = true, charging = true)))
+    }
+
+    @Test
+    fun onePictureIsAScreensWholeSource() {
+        val st = base.copy(home = base.home.copy(picture = 3, everyMinutes = 30))
+        val out = Plan.advance(st, listOf(Screen.HOME), at(9), zone, Random(1))
+        assertEquals(3L, out.homeNow.current)
+        assertEquals(3L, Plan.advance(out, listOf(Screen.HOME), at(10), zone, Random(2)).homeNow.current)
+        // Nothing to change to, so no interval alarm and no need to watch for locks.
+        assertNull(Plan.nextAlarm(out.copy(lock = Rotation()), at(9, 5), zone))
+        assertFalse(Plan.rotates(st, Screen.HOME))
+        assertTrue(Plan.rotates(st.copy(modes = listOf(Mode(300, "Night", Cue.DARK, home = 200))), Screen.HOME))
+        // A picture that is no longer in any album names nothing.
+        assertNull(st.pool(42))
+    }
 }

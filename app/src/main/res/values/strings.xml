@@ -3,4 +3,8 @@
     <string name="app_name">Badal</string>
     <string name="tile">Next wallpaper</string>
     <string name="live_description">Your home screen album, fading from one picture to the next</string>
+    <string name="widget_description">The wallpaper now, with Previous and Next</string>
+    <string name="widget_picture">The wallpaper now; opens Badal</string>
+    <string name="previous">Previous</string>
+    <string name="next">Next</string>
 </resources>

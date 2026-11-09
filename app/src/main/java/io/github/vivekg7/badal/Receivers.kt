@@ -26,7 +26,10 @@ class AlarmReceiver : BroadcastReceiver() {
     override fun onReceive(
         context: Context,
         intent: Intent,
-    ) = async(context) { context.app.engine.tick() }
+    ) = async(context) {
+        context.app.engine.tick()
+        context.app.library.rescan(daily = true)
+    }
 }
 
 /**

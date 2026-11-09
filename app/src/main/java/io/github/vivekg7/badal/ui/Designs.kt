@@ -1,6 +1,7 @@
 package io.github.vivekg7.badal.ui
 
 import android.util.LruCache
+import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -157,15 +158,17 @@ private fun DesignTile(
 
 /**
  * The premade designs, by kind. Tap one to change it before adding; long-press
- * to pick several and add them as they are.
+ * to pick several and add them as they are. A tab of its own (plan 008), with
+ * no [onBack]; or opened from an album, adding to it.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GalleryPage(
     grid: LazyGridState,
-    onBack: () -> Unit,
+    onBack: (() -> Unit)?,
     onOpen: (Design) -> Unit,
     onAdd: (List<Design>) -> Unit,
+    onHelp: (() -> Unit)? = null,
 ) {
     var selected by remember { mutableStateOf(emptyList<Design>()) }
     Scaffold(
@@ -173,14 +176,20 @@ fun GalleryPage(
             TopAppBar(
                 title = { Text(if (selected.isEmpty()) "Make a wallpaper" else "${selected.size} selected") },
                 navigationIcon = {
-                    if (selected.isEmpty()) {
-                        IconButton(onBack) { Icon(Icons.Back, "Back") }
-                    } else {
-                        IconButton({ selected = emptyList() }) { Icon(Icons.Close, "Clear selection") }
+                    when {
+                        selected.isNotEmpty() -> IconButton({ selected = emptyList() }) { Icon(Icons.Close, "Clear selection") }
+                        onBack != null -> IconButton(onBack) { Icon(Icons.Back, "Back") }
                     }
                 },
                 actions = {
-                    if (selected.isNotEmpty()) TextButton({ onAdd(selected) }) { Text("Add ${selected.size}") }
+                    if (selected.isNotEmpty()) {
+                        TextButton({
+                            onAdd(selected)
+                            selected = emptyList()
+                        }) { Text("Add ${selected.size}") }
+                    } else if (onHelp != null) {
+                        IconButton(onHelp) { Icon(Icons.Help, "Help") }
+                    }
                 },
             )
         },
@@ -250,6 +259,39 @@ fun GalleryPage(
     }
 }
 
+/**
+ * Where [designs] go when they weren't made from inside an album: pick one, or
+ * make a new one. [onDone] says whether they were added.
+ */
+@Composable
+fun AddToAlbum(
+    designs: List<Design>,
+    state: io.github.vivekg7.badal.State,
+    onDone: (Boolean) -> Unit,
+) {
+    val context = LocalContext.current
+    val app = context.app
+    var naming by remember { mutableStateOf(state.albums.isEmpty()) }
+
+    fun into(
+        name: String,
+        album: suspend () -> Long,
+    ) {
+        onDone(true)
+        app.scope.launch {
+            val n = app.library.make(album(), designs)
+            withContext(Dispatchers.Main) {
+                Toast.makeText(context, if (n == 0) "Nothing added" else "Added to $name", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+    if (naming) {
+        NameDialog("New album", "", onDone = { name -> into(name) { app.library.create(name) } }, onDismiss = { onDone(false) })
+    } else {
+        AlbumPicker(state.albums, onPick = { a -> into(a.name) { a.id } }, onDismiss = { onDone(false) }, onNew = { naming = true })
+    }
+}
+
 /** One design, being changed: a live preview over its settings. [editing]: it replaces a picture already in the album. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -260,6 +302,7 @@ fun DesignPage(
     onDone: (Design) -> Unit,
 ) {
     var d by rememberSaveable(stateSaver = DesignSaver) { mutableStateOf(start) }
+    val context = LocalContext.current
     val ratio = screenRatio()
     val movable = d.motif.centred || d.fill == Fill.RADIAL || d.fill == Fill.SWEEP
     Scaffold(
@@ -267,7 +310,10 @@ fun DesignPage(
             TopAppBar(
                 title = { Text(if (editing) "Edit wallpaper" else "New wallpaper") },
                 navigationIcon = { IconButton(onBack) { Icon(Icons.Back, "Back") } },
-                actions = { IconButton({ d = Presets.random(Random.nextInt()) }) { Icon(Icons.Dice, "Surprise me") } },
+                actions = {
+                    IconButton({ d = Presets.random(Random.nextInt()) }) { Icon(Icons.Dice, "Surprise me") }
+                    IconButton({ export(context) { if (it.images.export(d)) 1 else 0 } }) { Icon(Icons.Download, "Save to gallery") }
+                },
             )
         },
         bottomBar = {

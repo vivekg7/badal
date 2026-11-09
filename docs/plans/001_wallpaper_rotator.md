@@ -112,9 +112,12 @@ reordering, favourites, day-of-week ranges and the battery-saver pause by
 [003](003_shade_order_favourites_days.md); the crossfade by
 [004](004_crossfade.md); wallpapers Badal draws itself by
 [005](005_designs.md); the shorter settings and Help by
-[006](006_less_text.md); the resource work by [007](007_resources.md).
+[006](006_less_text.md); the resource work by [007](007_resources.md); the
+Designs tab and saving to the gallery by [008](008_designs_tab_export.md);
+modes by [009](009_modes.md); one-picture sources, Blur and Grayscale,
+followed folders, backups and the widget by [010](010_more.md).
 
 ## Ideas for later
 
-Live-folder albums (re-scan a folder), a grayscale or blur effect, and a
-"change only while charging" rule.
+A "change only while charging" rule. (Live folders and the grayscale and blur
+effects were built in [010](010_more.md).)

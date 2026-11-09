@@ -10,14 +10,16 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.ServiceInfo
+import android.content.res.Configuration
 import android.util.Log
 import kotlinx.coroutines.launch
 
 /**
  * Android sends "screen off" only to receivers registered by a running app, so
  * changing on every lock needs a process that stays up: this foreground
- * service. It runs only while a screen changes on lock, and does nothing but
- * wait for that broadcast.
+ * service. It runs only while a screen changes on lock or a mode has a cue to
+ * wait for (plan 009): Do Not Disturb, charging and the dark theme are also
+ * told only to a running app. It does nothing but wait for those.
  *
  * Badal never asks to post notifications, so on Android 13+ its notification
  * is hidden; the service shows in the Task Manager instead.
@@ -32,13 +34,20 @@ class LockWatcher : Service() {
                 val pending = goAsync()
                 app.scope.launch {
                     try {
-                        app.engine.screenOff()
+                        if (intent.action == Intent.ACTION_SCREEN_OFF) {
+                            app.engine.screenOff()
+                            // A followed folder gets its daily look while nobody is watching.
+                            app.library.rescan(daily = true)
+                        } else {
+                            app.engine.settle()
+                        }
                     } finally {
                         pending.finish()
                     }
                 }
             }
         }
+    private var night = 0
 
     override fun onCreate() {
         super.onCreate()
@@ -49,12 +58,30 @@ class LockWatcher : Service() {
             Notification
                 .Builder(this, CHANNEL)
                 .setSmallIcon(R.drawable.ic_glyph)
-                .setContentTitle("Changing wallpaper on each lock")
+                .setContentTitle("Waiting to change the wallpaper")
                 .setContentIntent(open)
                 .setOngoing(true)
                 .build()
         startForeground(1, note, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
-        registerReceiver(screenOff, IntentFilter(Intent.ACTION_SCREEN_OFF), RECEIVER_NOT_EXPORTED)
+        val heard =
+            IntentFilter().apply {
+                addAction(Intent.ACTION_SCREEN_OFF)
+                addAction(NotificationManager.ACTION_INTERRUPTION_FILTER_CHANGED)
+                addAction(Intent.ACTION_POWER_CONNECTED)
+                addAction(Intent.ACTION_POWER_DISCONNECTED)
+            }
+        // System broadcasts all; NOT_EXPORTED keeps other apps from sending them.
+        registerReceiver(screenOff, heard, RECEIVER_NOT_EXPORTED)
+        night = resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
+    }
+
+    /** The dark theme came on or went off. */
+    override fun onConfigurationChanged(c: Configuration) {
+        super.onConfigurationChanged(c)
+        val now = c.uiMode and Configuration.UI_MODE_NIGHT_MASK
+        if (now == night) return
+        night = now
+        app.scope.launch { app.engine.settle() }
     }
 
     override fun onStartCommand(
@@ -73,7 +100,9 @@ class LockWatcher : Service() {
     companion object {
         private const val CHANNEL = "watcher"
 
-        fun needed(st: State) = st.driven.any { st.rotation(it).onLock }
+        fun needed(st: State) =
+            st.driven.any { st.rotation(it).onLock && Plan.rotates(st, it) } ||
+                st.modes.any { m -> m.cue != Cue.HAND && st.driven.any { m.album(it) != null } }
 
         /** Start or stop the watcher to match [st]. */
         fun sync(

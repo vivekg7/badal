@@ -124,7 +124,7 @@ fun ScreenPage(
             Section("Pictures") {
                 val album = state.album(r.albumId)
                 Setting(Icons.Albums, "Album", onClick = { if (state.albums.isEmpty()) toAlbums() else picking = true }) {
-                    Value(album?.name ?: "Choose")
+                    Value(if (r.picture != null && state.pool(r.picture) != null) "One picture" else album?.name ?: "Choose")
                 }
                 Setting(Icons.Shuffle, "Order") {
                     Segments(listOf("Shuffle" to Order.SHUFFLE, "In order" to Order.IN_ORDER), r.order) { o -> edit { it.copy(order = o) } }
@@ -158,6 +158,8 @@ fun ScreenPage(
                 Segments(listOf("Fill" to Fit.FILL, "Whole" to Fit.WHOLE), r.fit) { f -> edit { it.copy(fit = f) } }
             }
             SliderSetting(Icons.Darken, "Darken", r.dim) { v -> edit { it.copy(dim = v) } }
+            SliderSetting(Icons.Blur, "Blur", r.blur, max = 100) { v -> edit { it.copy(blur = v) } }
+            SliderSetting(Icons.Gray, "Grayscale", r.gray, max = 100) { v -> edit { it.copy(gray = v) } }
             if (screen == Screen.LOCK) SliderSetting(Icons.Shade, "Shade", r.shade) { v -> edit { it.copy(shade = v) } }
             if (r.enabled || live) {
                 SwitchSetting(Icons.Fade, "Crossfade", live) { on ->
@@ -177,8 +179,11 @@ fun ScreenPage(
     if (picking) {
         AlbumPicker(state.albums, onPick = { a ->
             picking = false
-            edit { it.copy(albumId = a.id) }
-        }, onDismiss = { picking = false })
+            edit { it.copy(albumId = a.id, picture = null) }
+        }, onDismiss = { picking = false }, onPicture = { a, id ->
+            picking = false
+            edit { it.copy(albumId = a.id, picture = id) }
+        })
     }
     if (choosingInterval) {
         IntervalDialog(r.everyMinutes, onDone = { m ->
@@ -234,7 +239,7 @@ private fun Preview(
                 .clip(MaterialTheme.shapes.large)
                 .clickable(enabled = id != null) { id?.let(onFrame) },
         ) {
-            Framed(rememberThumb(id), id?.let { r.frame(it) } ?: Framing.of(r.fit), r.dim, r.shade, Modifier.fillMaxSize())
+            Framed(rememberThumb(id), id?.let { r.frame(it) } ?: Framing.of(r.fit), r.finish, Modifier.fillMaxSize())
             if (busy) CircularProgressIndicator(Modifier.align(Alignment.Center).size(32.dp), color = Color.White)
         }
         Column(Modifier.padding(start = 20.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -310,13 +315,21 @@ private fun nextLabel(
     val p = state.progress(screen)
     val paused = context.app.engine.paused(state)
     if (paused && (r.onLock || r.everyMinutes > 0) && r.ranges.isEmpty()) return "Paused: battery saver"
+    // A mode in force names itself first: "Work · Next: on lock".
+    val mode =
+        state
+            .mode(context.app.engine.sense())
+            ?.takeIf { it.album(screen) != null }
+            ?.let { "${it.name} · " }
+            .orEmpty()
+    if (!Plan.rotates(state, screen)) return mode + "One picture"
     val parts =
         buildList {
             if (r.onLock && !paused) add("on lock")
             if (r.everyMinutes > 0 && !paused) add("~" + momentLabel(context, maxOf(p.changedAt + r.everyMinutes * Plan.MINUTE, now), now))
             Plan.nextEdge(r, now, ZoneId.systemDefault())?.let { add(momentLabel(context, it, now)) }
         }
-    return if (parts.isEmpty()) "Only on Next" else "Next: " + parts.joinToString(" or ")
+    return mode + if (parts.isEmpty()) "Only on Next" else "Next: " + parts.joinToString(" or ")
 }
 
 /** A time, with the day when it isn't today: "21:00", "Mon 09:00". */

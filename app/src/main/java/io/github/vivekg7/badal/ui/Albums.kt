@@ -1,5 +1,8 @@
 package io.github.vivekg7.badal.ui
 
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -155,6 +158,8 @@ fun AlbumPage(
     var renaming by remember { mutableStateOf(false) }
     var deleting by remember { mutableStateOf(false) }
     var reordering by remember { mutableStateOf(false) }
+    var picked by remember { mutableStateOf<Uri?>(null) } // a folder, waiting for "follow it?"
+    var following by remember { mutableStateOf(false) }
     val grid = rememberLazyGridState()
     val drag = remember(album.id) { Drag(grid).apply { order = album.images } }
     // Pictures added or removed; never mid-drag, nor in the moment between a drop and its save.
@@ -174,7 +179,7 @@ fun AlbumPage(
         }
     val folder =
         rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { tree ->
-            if (tree != null) adding { app.library.addFolder(album.id, tree) }
+            picked = tree
         }
     if (reordering) BackHandler { reordering = false }
 
@@ -229,6 +234,7 @@ fun AlbumPage(
                 actions = {
                     if (reordering) return@TopAppBar
                     if (selected.isEmpty()) {
+                        if (album.folder != null) IconButton({ following = true }) { Icon(Icons.Sync, "Follows a folder") }
                         if (album.images.size > 1) IconButton({ reordering = true }) { Icon(Icons.Reorder, "Reorder") }
                         IconButton({ renaming = true }) { Icon(Icons.Edit, "Rename") }
                     } else {
@@ -239,6 +245,11 @@ fun AlbumPage(
                             selected = emptySet()
                             app.scope.launch { app.library.star(album.id, ids, !all) }
                         }) { Icon(if (all) Icons.Star else Icons.StarOutline, if (all) "Remove from favourites" else "Add to favourites") }
+                        IconButton({
+                            val ids = selected
+                            selected = emptySet()
+                            export(context) { app -> ids.count { app.images.export(it) } }
+                        }) { Icon(Icons.Download, "Save to gallery") }
                     }
                     IconButton({ deleting = true }) { Icon(Icons.Delete, if (selected.isEmpty()) "Delete album" else "Remove pictures") }
                 },
@@ -403,9 +414,50 @@ fun AlbumPage(
                         tapped = null
                         onFrame(id)
                     })
+                    Setting(Icons.Download, "Save to gallery", onClick = {
+                        tapped = null
+                        export(context) { if (it.images.export(id)) 1 else 0 }
+                    })
                 }
             }
         }
+    }
+    picked?.let { tree ->
+        AlertDialog(
+            onDismissRequest = { picked = null },
+            title = { Text("Follow this folder?") },
+            text = { Text("New pictures in it join the album, and ones deleted from it leave.") },
+            confirmButton = {
+                TextButton({
+                    picked = null
+                    // A lasting grant, or the folder can't be read again after a reboot.
+                    context.contentResolver.takePersistableUriPermission(tree, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    album.folder?.let { old -> release(context, old) }
+                    adding { app.library.follow(album.id, tree) }
+                }) { Text("Follow") }
+            },
+            dismissButton = {
+                TextButton({
+                    picked = null
+                    adding { app.library.addFolder(album.id, tree) }
+                }) { Text("Add once") }
+            },
+        )
+    }
+    if (following) {
+        AlertDialog(
+            onDismissRequest = { following = false },
+            title = { Text("Follows a folder") },
+            text = { Text("New pictures in it join this album when Badal opens, and once a day. Ones deleted from it leave.") },
+            confirmButton = { TextButton({ following = false }) { Text("Close") } },
+            dismissButton = {
+                TextButton({
+                    following = false
+                    album.folder?.let { release(context, it) }
+                    app.scope.launch { app.library.unfollow(album.id) }
+                }) { Text("Stop following") }
+            },
+        )
     }
     if (renaming) {
         NameDialog("Rename album", album.name, onDone = { name ->
@@ -435,6 +487,16 @@ fun AlbumPage(
             dismissButton = { TextButton({ deleting = false }) { Text("Cancel") } },
         )
     }
+}
+
+/** Give back the lasting grant to a folder no longer followed. */
+private fun release(
+    context: Context,
+    folder: String,
+) = try {
+    context.contentResolver.releasePersistableUriPermission(Uri.parse(folder), Intent.FLAG_GRANT_READ_URI_PERMISSION)
+} catch (e: SecurityException) {
+    // Already gone, as after a restore on another phone.
 }
 
 /**

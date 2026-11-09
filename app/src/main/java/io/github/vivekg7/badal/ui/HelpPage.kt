@@ -44,6 +44,9 @@ private val help =
                 "Shuffle or In order?" to
                     "Shuffle shows every picture once, in a random order, before any repeats. Favourites come up twice a round. " +
                     "In order plays the album as it is arranged (reorder it from the album's menu).",
+                "Can a screen show just one picture?" to
+                    "Yes. Tap Album, then the picture button beside an album, and choose one. It stays until By the hour or " +
+                    "a mode puts another album up.",
             ),
         "When it changes" to
             listOf(
@@ -70,6 +73,9 @@ private val help =
                 "Darken and Shade" to
                     "Darken dims the whole picture, so a busy one doesn't hide icons or the clock. Shade, on the lock screen, " +
                     "darkens only the top and fades out below the clock.",
+                "Blur and Grayscale" to
+                    "Blur softens the whole picture, so the clock and icons stand out from it. Grayscale takes out its " +
+                    "colour, some or all of it.",
                 "What is Crossfade?" to
                     "The picture fades into the next instead of switching, when a change happens while you're looking. Badal " +
                     "becomes that screen's live wallpaper: in the preview that opens, tap Set wallpaper and choose the screen " +
@@ -77,34 +83,65 @@ private val help =
                 "Crossfade is on, but Samsung's dark mode doesn't dim the wallpaper" to
                     "One UI dims only still wallpapers. Use Darken instead.",
             ),
+        "Designs" to
+            listOf(
+                "Making a wallpaper" to
+                    "The Designs tab has hundreds of ready designs. Tap one to change its colours, pattern and finish, then " +
+                    "Add to album. Long-press several to add them as they are. In the designer, drag on the preview to move a " +
+                    "pattern that grows from a point, or a radial or sweep fill. Edit design, in a picture's menu, changes it later.",
+                "Saving to the gallery" to
+                    "The download button in the designer saves the design to your gallery, in Pictures/Badal, without adding " +
+                    "it to an album. In an album, Save to gallery is in a picture's menu, or select several. Photos are " +
+                    "saved as their original file, designs as PNG.",
+            ),
+        "Modes" to
+            listOf(
+                "What is a mode?" to
+                    "Other albums for a while, for one screen or both: calm pictures at work, dark ones in bed. A mode on " +
+                    "By hand stays on until you switch it off, here or with its shortcut. The others are on while Do Not " +
+                    "Disturb, the dark theme or charging is. A mode by hand wins over those, and any mode over By the hour.",
+                "Can Samsung's modes switch Badal's?" to
+                    "Android doesn't tell other apps which of its modes (Work, Sleep, Driving…) is on. But each mode on By " +
+                    "hand gets a shortcut (long-press Badal's icon), and Modes and Routines can run one: add the action " +
+                    "\"Open an app or do an app action\", choose Badal and the mode, and add Modes off to what happens when it " +
+                    "ends. Sleep and similar modes turn on Do Not Disturb, which a Do Not Disturb mode follows by itself.",
+            ),
         "Albums" to
             listOf(
                 "Are my pictures copied?" to
                     "Yes. Badal keeps its own copy of each, so deleting one from the gallery doesn't break a rotation. " +
                     "Removing a picture from Badal never touches the original.",
                 "How do I add pictures?" to
-                    "In an album: + adds from the gallery, the folder button adds every picture in a folder (once, not kept " +
-                    "in sync), and the palette makes a wallpaper.",
+                    "In an album: + adds from the gallery, the folder button adds every picture in a folder, and the palette " +
+                    "makes a wallpaper and adds it here.",
+                "Following a folder" to
+                    "Adding a folder asks whether to follow it. Followed, its new pictures join the album each time Badal " +
+                    "opens and once a day, and ones deleted from it leave. Removing one from the album yourself keeps it " +
+                    "out. The circling arrows in the album's top bar stop following.",
                 "Selecting, favourites, reordering" to
-                    "Tap a picture to show it now, star it, frame it or edit its design. Long-press to select several, then " +
-                    "star or remove them together. The arrows in the top bar reorder the album: hold a picture and drag it.",
-                "Making a wallpaper" to
-                    "The palette button opens hundreds of ready designs. Tap one to change its colours, pattern and finish, " +
-                    "or long-press several to add them as they are. In the designer, drag on the preview to move a pattern " +
-                    "that grows from a point, or a radial or sweep fill. Edit design, in a picture's menu, changes it later.",
+                    "Tap a picture to show it now, star, frame or save it, or edit its design. Long-press to select several, then " +
+                    "star, save or remove them together. The up-down arrows in the top bar reorder the album: hold a picture " +
+                    "and drag it.",
             ),
         "Settings" to
             listOf(
                 "Different on each screen" to
                     "When home and lock use the same album, they never show the same picture at once.",
                 "Battery: Restricted or Unrestricted?" to
-                    "Changing on each lock needs Badal to wait in the background for the screen to turn off. Samsung stops " +
-                    "restricted apps, and the changes on lock stop with them. Tap to allow it. Nothing else needs this.",
-                "Shortcuts" to
+                    "Changing on each lock needs Badal to wait in the background for the screen to turn off, and so do modes " +
+                    "that come on by themselves. Samsung stops restricted apps, and those changes stop with them. Tap to " +
+                    "allow it. Nothing else needs this.",
+                "Shortcuts and the widget" to
                     "The Quick Settings tile puts the next picture on every screen Badal changes. Long-press the app's icon " +
-                    "for next home or next lock.",
+                    "for next home, next lock and the modes. The widget (Settings, or long-press the home screen and " +
+                    "choose Widgets) shows the picture now, with Previous and Next.",
+                "Backups" to
+                    "Save a backup puts every album, picture and setting into one zip file, wherever you choose. Restore a " +
+                    "backup replaces everything in Badal with what it holds, on this phone or a new one. Keep it somewhere " +
+                    "private: it has your pictures in it.",
                 "Privacy" to
-                    "Badal has no internet access. Your pictures never leave the phone, and Android's backup is off for it.",
+                    "Badal has no internet access. Your pictures never leave the phone, and Android's backup is off for it: " +
+                    "Save a backup instead.",
             ),
     )
 

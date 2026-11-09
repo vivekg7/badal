@@ -48,6 +48,9 @@ class Store(
             next
         }
 
+    /** A state saved elsewhere (a backup); throws if it isn't one. */
+    fun decode(text: String): State = json.decodeFromString(State.serializer(), text)
+
     private fun load(): State =
         try {
             if (file.baseFile.exists()) json.decodeFromString(State.serializer(), String(file.readFully())) else State()
