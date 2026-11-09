@@ -19,6 +19,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -46,7 +47,9 @@ private data class Tab(
 
 /**
  * Four tabs; an open album, the framing editor or Help covers them. No
- * navigation library: that is the whole back stack.
+ * navigation library: that is the whole back stack. A covered page leaves
+ * composition, so each tab and the open album keep their saved state (scroll
+ * positions above all) in [pages] and come back as they were left.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -57,6 +60,7 @@ fun Shell() {
     var open by rememberSaveable { mutableStateOf<Long?>(null) }
     var framing by rememberSaveable { mutableStateOf<Pair<Long, Screen>?>(null) }
     var help by rememberSaveable { mutableStateOf(false) }
+    val pages = rememberSaveableStateHolder()
     if (help) {
         BackHandler { help = false }
         HelpPage(onBack = { help = false })
@@ -71,8 +75,15 @@ fun Shell() {
     }
     val album = state.album(open)
     if (album != null) {
-        BackHandler { open = null }
-        AlbumPage(album, state, onBack = { open = null }, onFrame = { framing = it to Screen.HOME })
+        // Leaving an album forgets it: open it again and it starts at the top.
+        val close = {
+            pages.removeState("album:${album.id}")
+            open = null
+        }
+        BackHandler(onBack = close)
+        pages.SaveableStateProvider("album:${album.id}") {
+            AlbumPage(album, state, onBack = close, onFrame = { framing = it to Screen.HOME })
+        }
         return
     }
     val screen = listOf(Screen.HOME, Screen.LOCK).getOrNull(tab)
@@ -102,11 +113,13 @@ fun Shell() {
         },
     ) { pad ->
         Box(Modifier.padding(pad).consumeWindowInsets(pad)) {
-            when (tab) {
-                0 -> ScreenPage(Screen.HOME, state, toAlbums = { tab = 2 }, onFrame = { framing = it to Screen.HOME })
-                1 -> ScreenPage(Screen.LOCK, state, toAlbums = { tab = 2 }, onFrame = { framing = it to Screen.LOCK })
-                2 -> AlbumsPage(state, onOpen = { open = it })
-                else -> SettingsPage(state, onHelp = { help = true })
+            pages.SaveableStateProvider("tab:$tab") {
+                when (tab) {
+                    0 -> ScreenPage(Screen.HOME, state, toAlbums = { tab = 2 }, onFrame = { framing = it to Screen.HOME })
+                    1 -> ScreenPage(Screen.LOCK, state, toAlbums = { tab = 2 }, onFrame = { framing = it to Screen.LOCK })
+                    2 -> AlbumsPage(state, onOpen = { open = it })
+                    else -> SettingsPage(state, onHelp = { help = true })
+                }
             }
         }
     }
