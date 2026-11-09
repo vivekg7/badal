@@ -1,0 +1,3 @@
+First release on Google Play.
+
+• Battery (Settings) now opens Badal's App info, where you choose Unrestricted so changes on lock keep working.
