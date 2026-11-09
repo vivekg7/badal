@@ -1,0 +1,4 @@
+First release on Google Play.
+
+• Settings → Privacy policy opens Badal's privacy policy (it collects nothing).
+• Battery (Settings) opens Badal's App info, where you choose Unrestricted so changes on lock keep working.
