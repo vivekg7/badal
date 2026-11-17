@@ -125,10 +125,11 @@ private val help =
                     "star, save or remove them together. The up-down arrows in the top bar reorder the album: hold a picture " +
                     "and drag it.",
                 "Viewing full screen" to
-                    "Swipe to the next picture, pinch or double-tap to zoom in. Tap once to hide the close button and the " +
-                    "system bars, and again to bring them back. Wherever Badal shows a picture, it opens full screen: in " +
-                    "an album from its menu, on the Home and Lock tabs by tapping it, in the designer from the button beside " +
-                    "its preview.",
+                    "Swipe to the next picture, pinch or double-tap to zoom in. Tap once to hide the top bar and the system " +
+                    "bars, and again to bring them back. It opens from View in a picture's menu in an album; by tapping a " +
+                    "design on the Designs tab, or the picture on the Home and Lock tabs; from the button beside the " +
+                    "preview in the designer and beside Save in the frame editor; and by long-pressing a picture when " +
+                    "choosing one for a screen.",
             ),
         "Settings" to
             listOf(
