@@ -96,6 +96,29 @@ enum class Motif(
     RIDGELINES("Ridgelines", "Art", centred = true, seeded = true),
     AURORA("Aurora", "Art", centred = true, seeded = true),
     BLOBS("Blobs", "Art", seeded = true),
+
+    // Curves, fractals and spirographs: docs/plans/012_curves_spirographs.md.
+    HILBERT("Hilbert", "Curves", turns = true),
+    MOORE("Moore", "Curves", turns = true),
+    PEANO("Peano", "Curves", turns = true),
+    SIERPINSKI("Sierpiński", "Curves", turns = true),
+    GOSPER("Flowsnake", "Curves", turns = true, centred = true),
+    DRAGON("Dragons", "Curves", turns = true, centred = true),
+    MEANDER("Meander", "Curves", turns = true, seeded = true),
+
+    APOLLONIAN("Apollonian", "Fractals", turns = true, centred = true, seeded = true),
+    CARPET("Carpet", "Fractals", turns = true, centred = true),
+    PENROSE("Penrose", "Fractals", turns = true, seeded = true),
+    PACKING("Packing", "Fractals", seeded = true),
+    BLOCKS("Blocks", "Fractals", seeded = true),
+
+    SPIROGRAPH("Spirograph", "Spirograph", turns = true, centred = true, seeded = true),
+    LOOPS("Loops", "Spirograph", turns = true, centred = true, seeded = true),
+    ROSETTES("Rosettes", "Spirograph", turns = true, seeded = true),
+    GUILLOCHE("Guilloche", "Spirograph", turns = true, centred = true, seeded = true),
+    WHIRL("Whirl", "Spirograph", turns = true, centred = true, seeded = true),
+    WHIRLS("Whirls", "Spirograph", turns = true, seeded = true),
+    HARMONOGRAPH("Harmonograph", "Spirograph", turns = true, centred = true, seeded = true),
     ;
 
     /** Colours its marks from the background under them, instead of in an ink: opacity is how much they vary. */

@@ -3,6 +3,7 @@ package io.github.vivekg7.badal
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.CornerPathEffect
 import android.graphics.LinearGradient
 import android.graphics.Matrix
 import android.graphics.Paint
@@ -280,6 +281,25 @@ private class Pen(
             Motif.MARBLE -> marble()
             Motif.RIDGELINES -> ridgelines()
             Motif.AURORA -> aurora()
+            Motif.HILBERT -> curve(Figures.Curve.HILBERT, round = false)
+            Motif.MOORE -> curve(Figures.Curve.MOORE, round = true)
+            Motif.PEANO -> curve(Figures.Curve.PEANO, round = false)
+            Motif.SIERPINSKI -> curve(Figures.Curve.SIERPINSKI, round = false)
+            Motif.GOSPER -> curve(Figures.Curve.GOSPER, round = true)
+            Motif.DRAGON -> dragons()
+            Motif.MEANDER -> meander()
+            Motif.APOLLONIAN -> apollonian()
+            Motif.CARPET -> carpet()
+            Motif.PENROSE -> penrose()
+            Motif.PACKING -> packing()
+            Motif.BLOCKS -> blocks()
+            Motif.SPIROGRAPH -> spirograph(outside = false)
+            Motif.LOOPS -> spirograph(outside = true)
+            Motif.ROSETTES -> rosettes()
+            Motif.GUILLOCHE -> guilloche()
+            Motif.WHIRL -> whirl()
+            Motif.WHIRLS -> whirls()
+            Motif.HARMONOGRAPH -> harmonograph()
         }
         c.restore()
         if (layered) c.restore()
@@ -1355,6 +1375,491 @@ private class Pen(
         }
     }
 
+    // --- curves, fractals and spirographs (docs/plans/012_curves_spirographs.md)
+
+    private val tilt = Math.toRadians(if (d.motif.turns) d.turn.toDouble() else 0.0)
+    private val tiltCos = cos(tilt).toFloat()
+    private val tiltSin = sin(tilt).toFloat()
+
+    /** Whether ([x], [y]), as drawn before the canvas turns, lands on the screen or within [margin] of it. */
+    fun seen(
+        x: Float,
+        y: Float,
+        margin: Float,
+    ): Boolean {
+        val dx = x - ox
+        val dy = y - oy
+        val sx = ox + dx * tiltCos - dy * tiltSin
+        val sy = oy + dx * tiltSin + dy * tiltCos
+        return sx > -margin && sx < w + margin && sy > -margin && sy < h + margin
+    }
+
+    /** [a] blended [t] of the way to [b]. */
+    fun blend(
+        a: Int,
+        b: Int,
+        t: Float,
+    ): Int {
+        fun ch(sh: Int) = ((a shr sh and 0xFF) + ((b shr sh and 0xFF) - (a shr sh and 0xFF)) * t).roundToInt() shl sh
+        return ch(24) or ch(16) or ch(8) or ch(0)
+    }
+
+    /** A colour [t] of the way round the inks, each blending into the next and the last back into the first. */
+    fun along(t: Float): Int {
+        if (inks.size == 1) return inks[0]
+        val x = t.mod(1f) * inks.size
+        val i = x.toInt()
+        return blend(ink(i), ink(i + 1), x - i)
+    }
+
+    /**
+     * One line through [p] (x, y pairs on the canvas), [width] wide, its
+     * corners rounded by [round]. In one [color], or else changing through the
+     * inks along the part of it that is on screen, so a line much larger
+     * than the screen still shows every ink.
+     */
+    fun trail(
+        p: FloatArray,
+        width: Float,
+        round: Float = 0f,
+        color: Int? = null,
+    ) {
+        val margin = width + round
+        val steps = p.size / 2 - 1
+        val shown = BooleanArray(max(0, steps)) { seen(p[it * 2], p[it * 2 + 1], margin) || seen(p[it * 2 + 2], p[it * 2 + 3], margin) }
+        val total = shown.count { it }
+        if (total == 0) return
+        // The stroke paint is shared: the corner effect comes off again at the end.
+        val paint = stroke(width)
+        paint.pathEffect = if (round > 0) CornerPathEffect(round) else null
+        val chunks = if (color != null || inks.size == 1) 1 else min(total, 40 * inks.size)
+        val path = Path()
+        var open = false
+        var chunk = 0
+        var done = 0
+
+        fun flush() {
+            if (open) c.drawPath(path, paint.ink(color ?: along((chunk + 0.5f) / chunks)))
+            path.reset()
+            open = false
+        }
+        for (i in 0 until steps) {
+            if (!shown[i]) {
+                flush()
+                continue
+            }
+            val q = done++ * chunks / total
+            val x1 = p[i * 2 + 2]
+            val y1 = p[i * 2 + 3]
+            if (open && q != chunk) {
+                // Change colour halfway along a step, where the line is straight, so no corner is cut.
+                val mx = (p[i * 2] + x1) / 2
+                val my = (p[i * 2 + 1] + y1) / 2
+                path.lineTo(mx, my)
+                flush()
+                path.moveTo(mx, my)
+                open = true
+            } else if (!open) {
+                path.moveTo(p[i * 2], p[i * 2 + 1])
+                open = true
+            }
+            chunk = q
+            path.lineTo(x1, y1)
+        }
+        flush()
+        paint.pathEffect = null
+    }
+
+    /** Points in cells laid onto the canvas: a cell [cell] pixels wide, cell ([cx], [cy]) on the design's point. */
+    fun place(
+        p: FloatArray,
+        cell: Float,
+        cx: Float,
+        cy: Float,
+    ) = FloatArray(p.size) { if (it % 2 == 0) ox + (p[it] - cx) * cell else oy + (p[it] - cy) * cell }
+
+    /** A space-filling curve at the order that covers the screen, its middle on the point, a step every half [s]. */
+    fun curve(
+        curve: Figures.Curve,
+        round: Boolean,
+    ) {
+        val cell = s * 0.5f
+        val need = reach * 2 / cell
+        var order = 1
+        var p = Figures.curve(curve, order)
+        while (span(p) < need && p.size < 300_000) p = Figures.curve(curve, ++order)
+        val (x0, y0, x1, y1) = box(p)
+        trail(place(p, cell, (x0 + x1) / 2, (y0 + y1) / 2), cell * (0.06f + 0.6f * k), if (round) cell * 0.5f else 0f)
+    }
+
+    /** The box round x, y pairs [p]: left, top, right, bottom. */
+    fun box(p: FloatArray): FloatArray {
+        val b = floatArrayOf(Float.MAX_VALUE, Float.MAX_VALUE, -Float.MAX_VALUE, -Float.MAX_VALUE)
+        for (i in p.indices step 2) {
+            b[0] = min(b[0], p[i])
+            b[1] = min(b[1], p[i + 1])
+            b[2] = max(b[2], p[i])
+            b[3] = max(b[3], p[i + 1])
+        }
+        return b
+    }
+
+    /** The narrower side of the box round [p]. */
+    fun span(p: FloatArray) = box(p).let { min(it[2] - it[0], it[3] - it[1]) }
+
+    /** Four dragon curves out from the point, a quarter turn apart, one ink each (or one ink, every other fainter): together they fill the plane. */
+    fun dragons() {
+        val cell = s
+        var order = 1
+        var p = Figures.curve(Figures.Curve.DRAGON, order)
+        while (span(p) < reach * 4 / cell && p.size < 400_000) p = Figures.curve(Figures.Curve.DRAGON, ++order)
+        for (q in 0 until 4) {
+            val a = q * PI / 2
+            val ca = cos(a).toFloat()
+            val sa = sin(a).toFloat()
+            val turned = FloatArray(p.size) { if (it % 2 == 0) p[it] * ca - p[it + 1] * sa else p[it - 1] * sa + p[it] * ca }
+            val col = if (inks.size == 1) withAlpha(ink(0), if (q % 2 == 0) 1f else 0.5f) else ink(q)
+            trail(place(turned, cell, 0f, 0f), cell * (0.05f + 0.45f * k), cell * 0.35f, col)
+        }
+    }
+
+    /** One closed line winding at random through every point of a grid, its corners rounded. */
+    fun meander() {
+        val cell = s * 0.5f
+        val n = (reach / cell).toInt() + 1
+        val p = Figures.meander(n, n, d.seed)
+        trail(place(p, cell, n - 0.5f, n - 0.5f), cell * (0.08f + 0.55f * k), cell * 0.5f)
+    }
+
+    /** A circle as a ring inside its edge, [gap] in from it: thicker with Weight, a disc at full. */
+    fun ring(
+        x: Float,
+        y: Float,
+        r: Float,
+        color: Int,
+        gap: Float,
+    ) {
+        val rr = r - gap
+        if (rr < u * 0.5f) return
+        val t = rr * (0.05f + 0.95f * k * k)
+        if (t > rr * 0.9f) {
+            c.drawCircle(x, y, rr, fill.ink(color))
+        } else {
+            c.drawCircle(x, y, rr - t / 2, stroke(t).ink(color))
+        }
+    }
+
+    /** An Apollonian gasket round the point: circles in the gaps between circles, inked by how deep they are. */
+    fun apollonian() {
+        val big = s * 6
+        val split = listOf(0.5, 0.4, 0.3, 0.45, 0.35, 0.25)[d.seed.mod(6)]
+        val cs = Figures.apollonian(split, (u * 2 / big).toDouble())
+        val gap = u * 0.75f + big * 0.004f
+        val edge = u + big * 0.03f * k
+        c.drawCircle(ox, oy, big + gap + edge / 2, stroke(edge).ink(ink(0)))
+        for (cc in cs) {
+            ring(
+                ox + cc.x.toFloat() * big,
+                oy + cc.y.toFloat() * big,
+                cc.r.toFloat() * big,
+                ink(cc.depth + 1),
+                min(gap, cc.r.toFloat() * big * 0.15f),
+            )
+        }
+    }
+
+    /** The holes of a Sierpiński carpet, the middle ninth of every square at every size, the largest on the point. */
+    fun carpet() {
+        val fit = 0.72f + 0.28f * k
+        var hole = s / 3
+        var level = 0
+        // Up to a hole half the screen wide: one larger would only be a block of colour.
+        while (hole < w * 0.5f) {
+            val period = hole * 3
+            val n = (reach / period).toInt() + 1
+            val half = hole * fit / 2
+            fill.ink(ink(level))
+            for (j in -n..n) {
+                for (i in -n..n) {
+                    val x = ox + i * period
+                    val y = oy + j * period
+                    if (seen(x, y, hole)) c.drawRect(x - half, y - half, x + half, y + half, fill)
+                }
+            }
+            hole *= 3
+            level++
+        }
+    }
+
+    /** A Penrose tiling of fat and thin rhombs, never repeating; Weight closes the gaps between them. */
+    fun penrose() {
+        val edge = max(s * 0.7f, u * 8)
+        val tiles = Figures.penrose(d.seed, (reach / edge).toDouble())
+        val edges = Path()
+        for (t in tiles) {
+            val p = FloatArray(8) { (if (it % 2 == 0) ox else oy) + t.p[it].toFloat() * edge }
+            if (!seen((p[0] + p[4]) / 2, (p[1] + p[5]) / 2, edge * 2)) continue
+            val shape = poly(*p)
+            c.drawPath(
+                shape,
+                fill.ink(
+                    ink(
+                        if (inks.size < 3) {
+                            if (t.thick) {
+                                0
+                            } else {
+                                1
+                            }
+                        } else {
+                            t.a + t.b
+                        },
+                    ),
+                ),
+            )
+            edges.addPath(shape)
+        }
+        // The gaps cut through the layer, so the background shows in them.
+        val cut = stroke(u * 1.5f + edge * 0.14f * (1 - k))
+        cut.xfermode = PorterDuffXfermode(PorterDuff.Mode.CLEAR)
+        c.drawPath(edges, cut)
+        cut.xfermode = null
+    }
+
+    /** Circles packed close without touching, large and small. */
+    fun packing() {
+        val gap = u * 2 + s * 0.06f
+        val cs = Figures.packing(w.toDouble(), h.toDouble(), (s * 1.2f).toDouble(), max(u * 3, s * 0.05f).toDouble(), gap.toDouble(), d.seed)
+        for (cc in cs) ring(cc.x.toFloat(), cc.y.toFloat(), cc.r.toFloat(), anyInk(), 0f)
+    }
+
+    /** The screen cut in two again and again at random, Mondrian-style; some blocks inked, the rest left empty. */
+    fun blocks() {
+        val gap = u * 2 + s * 0.2f * (1 - k)
+
+        fun cut(
+            x0: Float,
+            y0: Float,
+            x1: Float,
+            y1: Float,
+        ) {
+            val bw = x1 - x0
+            val bh = y1 - y0
+            val big = max(bw, bh)
+            if (big < s * 1.2f || (big < s * 6 && rnd.nextFloat() < 0.35f)) {
+                if (rnd.nextFloat() < 0.7f) c.drawRoundRect(x0 + gap / 2, y0 + gap / 2, x1 - gap / 2, y1 - gap / 2, gap / 2, gap / 2, fill.ink(anyInk()))
+                return
+            }
+            val t = 0.25f + 0.5f * rnd.nextFloat()
+            if (bw > bh) {
+                cut(x0, y0, x0 + bw * t, y1)
+                cut(x0 + bw * t, y0, x1, y1)
+            } else {
+                cut(x0, y0, x1, y0 + bh * t)
+                cut(x0, y0 + bh * t, x1, y1)
+            }
+        }
+        cut(gap / 2, gap / 2, w - gap / 2, h - gap / 2)
+    }
+
+    /**
+     * Spirograph rings and wheels (tooth counts) that close in 5 to 40 petals,
+     * after 4 to 20 laps: fewer laps leave it sparse. [outside]: wheels rolled round another wheel, at most
+     * seven times smaller, so its loops are petals rather than a fringe.
+     */
+    fun gears(outside: Boolean): List<Pair<Int, Int>> {
+        val wheels = listOf(24, 30, 32, 36, 40, 42, 45, 48, 52, 56, 60, 63, 64, 72, 75, 80, 84)
+        val rings = if (outside) wheels else listOf(96, 105, 144, 150)
+        return rings.flatMap { ring -> wheels.map { ring to it } }.filter { (ring, wheel) ->
+            val g = gcd(ring, wheel)
+            ring / g in 5..40 && wheel / g in (if (outside) 2 else 4)..20 && (!outside || (ring > wheel && ring <= wheel * 7))
+        }
+    }
+
+    fun gcd(
+        a: Int,
+        b: Int,
+    ): Int = if (b == 0) a else gcd(b, a % b)
+
+    /**
+     * A wheel of [wheel] teeth rolling round inside a ring of [ring] (or round
+     * outside it, when [outside]), the pen [pen] of the wheel's radius from its
+     * middle: points fitted into radius [size] round ([x], [y]), turned [turn].
+     */
+    fun trochoid(
+        ring: Int,
+        wheel: Int,
+        pen: Float,
+        outside: Boolean,
+        x: Float,
+        y: Float,
+        size: Float,
+        turn: Double,
+    ): FloatArray {
+        val laps = wheel / gcd(ring, wheel)
+        val big = ring.toDouble()
+        val r = wheel.toDouble()
+        val dd = r * pen
+        val arm = if (outside) big + r else big - r
+        val scale = size / (arm + dd)
+        val ratio = arm / r
+        val n = (laps * max(400, ring / gcd(ring, wheel) * 24)).coerceAtMost(40_000)
+        // The wheel's middle goes round at the arm; the pen round the wheel's middle, backwards inside the ring.
+        val pen = if (outside) -dd else dd
+        return FloatArray(n * 2 + 2) {
+            val t = 2 * PI * laps * (it / 2) / n
+            val a = turn + t
+            val b = turn + if (outside) ratio * t else -ratio * t
+            if (it % 2 == 0) x + (scale * (arm * cos(a) + pen * cos(b))).toFloat() else y + (scale * (arm * sin(a) + pen * sin(b))).toFloat()
+        }
+    }
+
+    /** One spirograph on the point, drawn once per ink, each a little turned and its pen a little moved, so the colours weave. */
+    fun spirograph(outside: Boolean) {
+        val gears = gears(outside)
+        // Neighbouring seeds pick gears far apart in the list, which differ more.
+        val (ring, wheel) = gears[(d.seed * 37).mod(gears.size)]
+        val petals = ring / gcd(ring, wheel)
+        val pens = if (outside) listOf(0.8f, 1.2f, 1.6f, 2f) else listOf(0.5f, 0.65f, 0.8f, 0.9f, 1f)
+        val pen = pens[(d.seed * 7).mod(pens.size)]
+        for (q in inks.indices) {
+            val p = trochoid(ring, wheel, pen * (1 - 0.06f * q), outside, ox, oy, s * 5, 2 * PI * q / (petals * inks.size))
+            trail(p, u * (1f + 6 * k), color = ink(q))
+        }
+    }
+
+    /** Small spirographs over the screen, each its own. */
+    fun rosettes() {
+        val spiros = gears(false)
+        val loops = gears(true)
+        lattice(s, s * 0.866f, stagger = true) { x, y, _, _ ->
+            if (!seen(x, y, s)) return@lattice
+            val outside = rnd.nextInt(3) == 0
+            val gears = if (outside) loops else spiros
+            val (ring, wheel) = gears[rnd.nextInt(gears.size)]
+            val pen = if (outside) 0.8f + rnd.nextFloat() else 0.5f + 0.5f * rnd.nextFloat()
+            val p = trochoid(ring, wheel, pen, outside, x, y, s * 0.46f, rnd.nextDouble() * 2 * PI)
+            trail(p, u * (0.6f + 3 * k), color = anyInk())
+        }
+    }
+
+    /** A banknote's rosette: bands of waves, each band many waves a little out of step, so they cross into a lattice. */
+    fun guilloche() {
+        val r = Random(d.seed)
+        val size = s * 5
+        val bands = 2 + r.nextInt(3)
+        val p = stroke(u * (0.6f + 3 * k))
+        for (b in 0 until bands) {
+            val mid = size * (0.25f + 0.75f * (b + 0.5f) / bands)
+            val amp = size * (0.35f / bands) * (0.6f + 0.4f * r.nextFloat())
+            val lobes = listOf(6, 8, 9, 10, 12, 15, 16, 18, 20, 24)[r.nextInt(10)]
+            val twist = 1 + r.nextInt(3)
+            val copies = 16 + r.nextInt(4) * 6
+            p.ink(ink(b))
+            for (i in 0 until copies) {
+                val phase = 2 * PI * i / copies
+                val path = Path()
+                val n = lobes * 48
+                for (j in 0..n) {
+                    val a = 2 * PI * j / n
+                    val rho = mid + amp * (0.6 * sin(lobes * a + phase) + 0.4 * sin(lobes * twist * a - phase * twist)).toFloat()
+                    val px = ox + rho * cos(a).toFloat()
+                    val py = oy + rho * sin(a).toFloat()
+                    if (j == 0) path.moveTo(px, py) else path.lineTo(px, py)
+                }
+                c.drawPath(path, p)
+            }
+        }
+    }
+
+    /** The corners of a regular polygon (or star, stepping [step] corners round) of radius [r] round ([x], [y]). */
+    fun corners(
+        sides: Int,
+        step: Int,
+        r: Float,
+        x: Float,
+        y: Float,
+        turn: Double,
+    ) = FloatArray(sides * 2) {
+        val a = turn + 2 * PI * (it / 2) * step / sides
+        if (it % 2 == 0) x + r * cos(a).toFloat() else y + r * sin(a).toFloat()
+    }
+
+    /** Each corner moved [t] of the way to the next ([flip]: the one before), which turns the shape a little and shrinks it. */
+    fun twist(
+        p: FloatArray,
+        t: Float,
+        flip: Boolean,
+    ): FloatArray {
+        val n = p.size / 2
+        return FloatArray(p.size) {
+            val i = it / 2
+            val j = (if (flip) i - 1 else i + 1).mod(n) * 2 + it % 2
+            p[it] + (p[j] - p[it]) * t
+        }
+    }
+
+    /** A polygon or star drawn again and again, each time a little turned and smaller: its corners trace spiral arms. */
+    fun whirl() {
+        val (sides, step) = listOf(3 to 1, 4 to 1, 5 to 1, 6 to 1, 8 to 1, 5 to 2, 7 to 2, 7 to 3, 8 to 3)[d.seed.mod(9)]
+        val t = listOf(0.03f, 0.05f, 0.08f)[(d.seed / 9).mod(3)]
+        var p = corners(sides, step, s * 5, ox, oy, -PI / 2)
+        val shapes = mutableListOf<FloatArray>()
+        while (shapes.size < 400 && span(p) > u * 4) {
+            shapes += p
+            p = twist(p, t, flip = false)
+        }
+        val pen = stroke(u * (0.6f + 3 * k))
+        shapes.forEachIndexed { i, q -> c.drawPath(poly(*q), pen.ink(along(i.toFloat() / shapes.size * 0.999f))) }
+    }
+
+    /** Squares across the screen, each whirled in, the next one the other way, so their spirals meet at the edges. */
+    fun whirls() {
+        val t = listOf(0.08f, 0.1f, 0.12f, 0.15f)[d.seed.mod(4)]
+        val side = s * 2
+        val half = side / 2
+        val depth = 60
+        val paths = List(depth) { Path() }
+        lattice(side, side) { x, y, i, j ->
+            if (!seen(x, y, side)) return@lattice
+            var p = floatArrayOf(x - half, y - half, x + half, y - half, x + half, y + half, x - half, y + half)
+            for (q in 0 until depth) {
+                if (span(p) < u * 3) break
+                paths[q].addPath(poly(*p))
+                p = twist(p, t, flip = (i + j) % 2 != 0)
+            }
+        }
+        val pen = stroke(u * (0.6f + 2.5f * k))
+        paths.forEachIndexed { q, path -> c.drawPath(path, pen.ink(along(q.toFloat() / depth))) }
+    }
+
+    /**
+     * A harmonograph's trace: a pendulum swinging each way, in a simple ratio
+     * but a little out of tune, so the figure turns as it dies away; and a
+     * third that circles, which winds it into loops.
+     */
+    fun harmonograph() {
+        val r = Random(d.seed)
+        val (a, b) = listOf(2 to 3, 1 to 2, 3 to 4, 1 to 1, 3 to 5, 2 to 5, 1 to 3)[d.seed.mod(7)]
+        val fx = a + 0.004 + r.nextDouble() * 0.01
+        val fy = b.toDouble()
+        val fr = (1 + r.nextInt(3)) * (if (r.nextBoolean()) 1 else -1) + 0.003
+        val px = r.nextDouble() * 2 * PI
+        val swing = 0.25 + 0.3 * r.nextDouble()
+        val damp = 0.004 + r.nextDouble() * 0.003
+        // Stopped while still a fifth of its size: smaller, the lines only crowd into a blot.
+        val end = 1.6 / damp
+        val n = (end * 30).toInt()
+        val size = s * 4.5f / (1 + swing).toFloat()
+        val p =
+            FloatArray(n * 2) {
+                val t = end * (it / 2) / n
+                val fade = exp(-damp * t)
+                val v = if (it % 2 == 0) sin(fx * t + px) + swing * cos(fr * t) else sin(fy * t) + swing * sin(fr * t)
+                (if (it % 2 == 0) ox else oy) + (size * v * fade).toFloat()
+            }
+        trail(p, u * (0.7f + 4 * k))
+    }
+
     fun smooth(
         e0: Float,
         e1: Float,
@@ -1368,21 +1873,6 @@ private class Pen(
         col: Int,
         a: Float,
     ) = (col and 0xFFFFFF) or ((a.coerceIn(0f, 1f) * (col ushr 24)).roundToInt() shl 24)
-}
-
-/** A growing list of floats, without boxing each one. */
-private class Floats {
-    var a = FloatArray(1024)
-    var n = 0
-
-    fun add(
-        x: Float,
-        y: Float,
-    ) {
-        if (n + 2 > a.size) a = a.copyOf(a.size * 2)
-        a[n++] = x
-        a[n++] = y
-    }
 }
 
 /** Perlin's improved gradient noise in two dimensions, about -1 to 1, the same for the same seed. */

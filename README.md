@@ -25,10 +25,12 @@ and the lock screen. _Badal_ (बदल) means "change".
   Badal becomes that screen's live wallpaper and fades to each new picture
   ([plan 004](docs/plans/004_crossfade.md)).
 - **Make your own abstract wallpapers**: plain colours, gradients and mesh
-  gradients, with 56 patterns over them (dots in grids, rings, rays
-  and spirals; stripes, waves, contours; tiles, Bauhaus, marble…). Start from
-  any of 280 premade designs, change colours, size and weight, and edit
-  them again later ([plan 005](docs/plans/005_designs.md)).
+  gradients, with 75 patterns over them (dots in grids, rings, rays
+  and spirals; stripes, waves, contours; tiles, Bauhaus, marble; space-filling
+  curves, fractals and spirographs…). Start from any of 356 premade designs,
+  change colours, size and weight, and edit them again later
+  ([plan 005](docs/plans/005_designs.md),
+  [plan 012](docs/plans/012_curves_spirographs.md)).
 - **Designs in their own tab**, a tap from anywhere; add any to an album, or
   **save it to your gallery**, as you can any picture
   ([plan 008](docs/plans/008_designs_tab_export.md)).

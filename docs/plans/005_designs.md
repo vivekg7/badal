@@ -110,4 +110,6 @@ that look, keeping your colours.
   would change under the user.
 - **Fractals and L-systems** came up in the search. They make pictures of
   things (trees, ferns) more than backgrounds, and need a different set of
-  controls.
+  controls. Later, the ones that do fill a screen like a texture
+  (space-filling curves, gaskets, tilings) were added in
+  [012](012_curves_spirographs.md).
