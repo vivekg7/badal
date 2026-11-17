@@ -119,9 +119,12 @@ private val help =
                     "opens and once a day, and ones deleted from it leave. Removing one from the album yourself keeps it " +
                     "out. The circling arrows in the album's top bar stop following.",
                 "Selecting, favourites, reordering" to
-                    "Tap a picture to show it now, star, frame or save it, or edit its design. Long-press to select several, then " +
+                    "Tap a picture to view it full screen, show it now, star, frame or save it, or edit its design. Long-press to select several, then " +
                     "star, save or remove them together. The up-down arrows in the top bar reorder the album: hold a picture " +
                     "and drag it.",
+                "Viewing full screen" to
+                    "Swipe to the next picture, pinch or double-tap to zoom in. Tap once to hide the close button and the " +
+                    "system bars, and again to bring them back.",
             ),
         "Settings" to
             listOf(

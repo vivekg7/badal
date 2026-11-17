@@ -113,6 +113,24 @@ class Images(
             d.setTargetSampleSize(max(1, min(info.size.width, info.size.height) / side))
         }
 
+    /**
+     * The picture for the full-screen viewer (plan 013): twice the size it shows
+     * at, fitted whole on a [w]×[h] screen, so it stays sharp zoomed in; never
+     * larger than it is. The size here may be before the EXIF rotation, so the
+     * larger of both orientations' fits is taken.
+     */
+    fun whole(
+        id: Long,
+        w: Int,
+        h: Int,
+    ): Bitmap =
+        ImageDecoder.decodeBitmap(ImageDecoder.createSource(file(id))) { d, info, _ ->
+            val iw = info.size.width.toFloat()
+            val ih = info.size.height.toFloat()
+            val k = min(1f, 2 * max(min(w / iw, h / ih), min(w / ih, h / iw)))
+            d.setTargetSize(max(1, (iw * k).roundToInt()), max(1, (ih * k).roundToInt()))
+        }
+
     fun delete(id: Long) {
         file(id).delete()
         thumb(id).delete()

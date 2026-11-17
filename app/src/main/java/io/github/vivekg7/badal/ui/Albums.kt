@@ -139,7 +139,7 @@ private fun usedBy(
 }
 
 /**
- * One album's pictures. Tap one to show it now; long-press to select several.
+ * One album's pictures. Tap one to view it, show it now and so on; long-press to select several.
  * In reorder mode, hold one and drag it to a new place.
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
@@ -187,6 +187,7 @@ fun AlbumPage(
     var gallery by rememberSaveable { mutableStateOf(false) }
     var draft by rememberSaveable { mutableStateOf<String?>(null) }
     var redesigning by rememberSaveable { mutableStateOf<Long?>(null) }
+    var viewing by rememberSaveable { mutableStateOf<Long?>(null) } // full screen (plan 013)
     // Out here, so the gallery is where you left it when you come back from the designer.
     val galleryGrid = rememberLazyGridState()
     draft?.let { json ->
@@ -209,6 +210,11 @@ fun AlbumPage(
             gallery = false
             adding { app.library.make(album.id, list) }
         })
+        return
+    }
+    viewing?.let { id ->
+        BackHandler { viewing = null }
+        ViewPage(drag.order, id, onClose = { viewing = null })
         return
     }
 
@@ -392,9 +398,17 @@ fun AlbumPage(
                             .fillMaxWidth(0.4f)
                             .aspectRatio(9f / 16f)
                             .clip(MaterialTheme.shapes.medium)
-                            .align(Alignment.CenterHorizontally),
+                            .align(Alignment.CenterHorizontally)
+                            .clickable {
+                                tapped = null
+                                viewing = id
+                            },
                     )
                     Spacer(Modifier.height(8.dp))
+                    Setting(Icons.Fullscreen, "View", onClick = {
+                        tapped = null
+                        viewing = id
+                    })
                     Setting(Icons.Home, "Show on home", onClick = { show(listOf(Screen.HOME)) })
                     if (!state.follows) Setting(Icons.Lock, "Show on lock", onClick = { show(listOf(Screen.LOCK)) })
                     Setting(Icons.Split, "Show on both", onClick = { show(listOf(Screen.HOME, Screen.LOCK)) })

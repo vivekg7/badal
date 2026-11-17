@@ -188,6 +188,7 @@ object Icons {
             " 1.5-.67 1.5-1.5-.67-1.5-1.5-1.5z",
     )
     val Gray by icon("filter_b_and_w", "M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16l-7-8v8H5l7-8V5h7v14z")
+    val Fullscreen by icon("fullscreen", "M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z")
     val Chevron by icon("chevron_right", "M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z")
     val Expand by icon("expand_more", "M16.59 8.59L12 13.17 7.41 8.59 6 10l6 6 6-6z")
 }
