@@ -2,7 +2,6 @@ package io.github.vivekg7.badal.ui
 
 import android.view.WindowInsets
 import android.view.WindowInsetsController
-import androidx.activity.ComponentActivity
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -13,18 +12,20 @@ import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
@@ -49,9 +50,15 @@ import androidx.compose.ui.input.pointer.PointerInputScope
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.toSize
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.window.DialogWindowProvider
+import io.github.vivekg7.badal.Finish
+import io.github.vivekg7.badal.Frame
 import io.github.vivekg7.badal.app
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -59,42 +66,46 @@ import kotlin.math.max
 import kotlin.math.min
 
 /**
- * An album's pictures full screen (plan 013), from [start]: each one whole, on
- * black. Swipe between them; pinch or double-tap to zoom in. A tap hides the
- * system bars and the close button, and another brings them back.
+ * Pictures full screen (plan 013), from [start]: each one whole, on black.
+ * Swipe between them; pinch or double-tap to zoom in. A tap hides the system
+ * bars and the top bar, and another brings them back. A dialog, so it opens
+ * over any page or dialog.
+ *
+ * [key] names picture `i`, as a number or string: the pager saves it in a
+ * Bundle. [load] gives picture `i` at full size; it runs off the main thread, and
+ * [thumb] stands in while it does. [actions] go in the top bar, for the
+ * picture in view.
  */
 @Composable
-fun ViewPage(
-    ids: List<Long>,
-    start: Long,
+fun Viewer(
+    count: Int,
+    start: Int,
     onClose: () -> Unit,
-) {
-    val context = LocalContext.current
-    val app = context.app
-    val (sw, sh) = remember { app.images.screen() }
-    val pager = rememberPagerState(ids.indexOf(start).coerceAtLeast(0)) { ids.size }
+    key: (Int) -> Any,
+    load: suspend (Int) -> ImageBitmap?,
+    thumb: @Composable (Int) -> ImageBitmap? = { null },
+    actions: @Composable RowScope.(Int) -> Unit = {},
+) = Dialog(onClose, DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
+    val pager = rememberPagerState(start.coerceIn(0, max(0, count - 1))) { count }
     var chrome by rememberSaveable { mutableStateOf(true) }
     // Only the picture in view zooms; swiping to another starts it afresh.
     val zoom = remember(pager.settledPage) { Zoom() }
-    val window = (context as ComponentActivity).window
+    val window = (LocalView.current.parent as? DialogWindowProvider)?.window
     LaunchedEffect(chrome) {
-        window.insetsController?.run {
+        window?.insetsController?.run {
             systemBarsBehavior = WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
             if (chrome) show(WindowInsets.Type.systemBars()) else hide(WindowInsets.Type.systemBars())
         }
     }
-    DisposableEffect(Unit) { onDispose { window.insetsController?.show(WindowInsets.Type.systemBars()) } }
 
     Box(Modifier.fillMaxSize().background(Color.Black)) {
         // Zoomed in, a drag moves the picture instead of turning the page.
-        HorizontalPager(pager, Modifier.fillMaxSize(), beyondViewportPageCount = 1, userScrollEnabled = zoom.scale == 1f, key = { ids[it] }) { page ->
-            val id = ids[page]
-            val thumb = rememberThumb(id)
-            // The thumbnail stands in while the picture loads.
-            val large by produceState<ImageBitmap?>(null, id) {
-                value = withContext(Dispatchers.IO) { runCatching { app.images.whole(id, sw, sh).asImageBitmap() }.getOrNull() }
+        HorizontalPager(pager, Modifier.fillMaxSize(), beyondViewportPageCount = 1, userScrollEnabled = zoom.scale == 1f, key = key) { page ->
+            val small = thumb(page)
+            val large by produceState<ImageBitmap?>(null, key(page)) {
+                value = withContext(Dispatchers.IO) { runCatching { load(page) }.getOrNull() }
             }
-            val shown = large ?: thumb
+            val shown = large ?: small
             val z = zoom.takeIf { page == pager.settledPage }
             Box(
                 Modifier
@@ -107,10 +118,11 @@ fun ViewPage(
                         })
                     },
             ) {
+                if (shown == null) CircularProgressIndicator(Modifier.align(Alignment.Center), color = Color.White)
                 shown?.let {
                     Image(
                         it,
-                        "Picture ${page + 1} of ${ids.size}",
+                        if (count > 1) "Picture ${page + 1} of $count" else "Picture",
                         Modifier.fillMaxSize().graphicsLayer {
                             if (z == null) return@graphicsLayer
                             scaleX = z.scale
@@ -129,14 +141,48 @@ fun ViewPage(
                     .fillMaxWidth()
                     .background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.5f), Color.Transparent)))
                     .statusBarsPadding()
-                    .padding(4.dp, 4.dp, 16.dp, 16.dp),
+                    .padding(4.dp, 4.dp, 8.dp, 16.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 IconButton(onClose) { Icon(Icons.Close, "Close", tint = Color.White) }
-                Text("${pager.currentPage + 1} of ${ids.size}", color = Color.White, style = MaterialTheme.typography.titleMedium)
+                if (count > 1) Text("${pager.currentPage + 1} of $count", color = Color.White, style = MaterialTheme.typography.titleMedium)
+                Spacer(Modifier.weight(1f))
+                if (count > 0) actions(pager.currentPage)
             }
         }
     }
+}
+
+/** Album pictures [ids] full screen, from [start], as they are kept. */
+@Composable
+fun PictureViewer(
+    ids: List<Long>,
+    start: Long,
+    onClose: () -> Unit,
+) {
+    val app = LocalContext.current.app
+    val (sw, sh) = remember { app.images.screen() }
+    Viewer(
+        ids.size,
+        ids.indexOf(start),
+        onClose,
+        key = { ids[it] },
+        load = { app.images.whole(ids[it], sw, sh).asImageBitmap() },
+        thumb = { rememberThumb(ids[it]) },
+    )
+}
+
+/** Picture [id] full screen exactly as the wallpaper shows it: placed by [frame], finished as [finish] says. */
+@Composable
+fun WallpaperViewer(
+    id: Long,
+    frame: Frame,
+    finish: Finish,
+    onClose: () -> Unit,
+) {
+    val app = LocalContext.current.app
+    val (sw, sh) = remember { app.images.screen() }
+    Viewer(1, 0, onClose, key = { id }, load = { gpu(app.images.render(id, sw, sh, frame, finish)) })
 }
 
 /** How big [b] shows, fitted whole into [box], before any zoom. */

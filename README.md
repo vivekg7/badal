@@ -21,8 +21,9 @@ and the lock screen. _Badal_ (बदल) means "change".
 - **Frame each picture for each screen**: drag and pinch it into place, with
   a guide showing where the lock-screen clock and the dock sit
   ([plan 002](docs/plans/002_framing.md)).
-- **View an album full screen**: swipe through its pictures, pinch or
-  double-tap to zoom ([plan 013](docs/plans/013_full_screen.md)).
+- **Every picture full screen**: albums, designs, and each screen's wallpaper
+  as it is set. Swipe through them, pinch or double-tap to zoom
+  ([plan 013](docs/plans/013_full_screen.md)).
 - **Crossfade** on the home screen, the lock screen or both, if you like:
   Badal becomes that screen's live wallpaper and fades to each new picture
   ([plan 004](docs/plans/004_crossfade.md)).

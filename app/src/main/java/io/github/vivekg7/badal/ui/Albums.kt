@@ -212,11 +212,6 @@ fun AlbumPage(
         })
         return
     }
-    viewing?.let { id ->
-        BackHandler { viewing = null }
-        ViewPage(drag.order, id, onClose = { viewing = null })
-        return
-    }
 
     Scaffold(
         topBar = {
@@ -436,6 +431,7 @@ fun AlbumPage(
             }
         }
     }
+    viewing?.let { PictureViewer(drag.order, it, onClose = { viewing = null }) }
     picked?.let { tree ->
         AlertDialog(
             onDismissRequest = { picked = null },

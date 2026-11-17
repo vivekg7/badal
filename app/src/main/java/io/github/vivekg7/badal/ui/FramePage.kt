@@ -149,8 +149,11 @@ fun FramePage(
     val saved = remember(id) { Screen.entries.associateWith { state.rotation(it).frames[id] } }
     var frames by remember(id) { mutableStateOf(saved) }
     var guides by rememberSaveable { mutableStateOf(true) }
+    var viewing by remember { mutableStateOf(false) }
     val r = state.rotation(screen)
     val frame = frames[screen] ?: Framing.of(r.fit)
+
+    if (viewing) WallpaperViewer(id, frame, r.finish, onClose = { viewing = false })
 
     fun set(f: Frame?) {
         frames = frames + (screen to f)
@@ -162,6 +165,7 @@ fun FramePage(
                 title = { Text("Frame picture") },
                 navigationIcon = { IconButton(onClose) { Icon(Icons.Close, "Discard") } },
                 actions = {
+                    IconButton({ viewing = true }) { Icon(Icons.Fullscreen, "Preview full screen") }
                     TextButton({
                         val changed = frames.filter { (s, f) -> f != saved[s] }
                         if (changed.isNotEmpty()) app.scope.launch { app.engine.frame(id, changed) }

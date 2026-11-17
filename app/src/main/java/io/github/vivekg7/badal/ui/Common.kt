@@ -10,6 +10,7 @@ import androidx.activity.ComponentActivity
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -208,6 +209,7 @@ fun AlbumPicker(
     onPicture: ((Album, Long) -> Unit)? = null,
 ) {
     var inside by remember { mutableStateOf<Album?>(null) }
+    var viewing by remember { mutableStateOf<Long?>(null) }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(inside?.name ?: "Choose an album") },
@@ -217,7 +219,14 @@ fun AlbumPicker(
                 a != null -> {
                     LazyVerticalGrid(GridCells.Fixed(3), horizontalArrangement = Arrangement.spacedBy(4.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         gridItems(a.images, key = { it }) { id ->
-                            Thumb(id, Modifier.aspectRatio(9f / 16f).clip(MaterialTheme.shapes.small).clickable { onPicture?.invoke(a, id) })
+                            // A long-press shows it full screen first.
+                            Thumb(
+                                id,
+                                Modifier
+                                    .aspectRatio(9f / 16f)
+                                    .clip(MaterialTheme.shapes.small)
+                                    .combinedClickable(onLongClick = { viewing = id }) { onPicture?.invoke(a, id) },
+                            )
                         }
                     }
                 }
@@ -253,6 +262,7 @@ fun AlbumPicker(
         },
         dismissButton = { TextButton(onDismiss) { Text("Cancel") } },
     )
+    inside?.let { a -> viewing?.let { PictureViewer(a.images, it, onClose = { viewing = null }) } }
 }
 
 /** Saves to the phone's gallery off the main thread with [save], which returns how many it saved, then says so. */

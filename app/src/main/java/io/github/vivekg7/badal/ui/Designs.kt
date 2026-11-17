@@ -109,6 +109,9 @@ private val drawn =
 
 fun dropDrawn() = drawn.evictAll()
 
+/** A gallery tile's width in pixels; the full-screen viewer shows it while the design draws at full size. */
+private const val TILE = 200
+
 /** Two at a time, so a gallery full of tiles doesn't starve the preview being dragged. */
 private val painting = Dispatchers.Default.limitedParallelism(2)
 
@@ -157,8 +160,9 @@ private fun DesignTile(
 }
 
 /**
- * The premade designs, by kind. Tap one to change it before adding; long-press
- * to pick several and add them as they are. A tab of its own (plan 008), with
+ * The premade designs, by kind. Tap one to see it full screen and swipe through
+ * them all (plan 013), to change it or add it from there; long-press to pick
+ * several and add them as they are. A tab of its own (plan 008), with
  * no [onBack]; or opened from an album, adding to it.
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -171,6 +175,31 @@ fun GalleryPage(
     onHelp: (() -> Unit)? = null,
 ) {
     var selected by remember { mutableStateOf(emptyList<Design>()) }
+    val all = remember { Presets.groups.flatMap { it.second } }
+    var viewing by remember { mutableStateOf<Int?>(null) }
+    viewing?.let { start ->
+        val app = LocalContext.current.app
+        val (sw, sh) = remember { app.images.screen() }
+        val close = { viewing = null }
+        Viewer(
+            all.size,
+            start,
+            close,
+            key = { it },
+            load = { withContext(painting) { gpu(Painter.render(all[it], sw, sh)) } },
+            thumb = { rememberDrawn(all[it], TILE) },
+            actions = { i ->
+                TextButton({
+                    close()
+                    onOpen(all[i])
+                }) { Text("Edit", color = Color.White) }
+                TextButton({
+                    close()
+                    onAdd(listOf(all[i]))
+                }) { Text("Add to album", color = Color.White) }
+            },
+        )
+    }
     Scaffold(
         topBar = {
             TopAppBar(
@@ -243,14 +272,14 @@ fun GalleryPage(
                                 .combinedClickable(
                                     onClick = {
                                         when {
-                                            selected.isEmpty() -> onOpen(d)
+                                            selected.isEmpty() -> viewing = all.indexOf(d)
                                             isSelected -> selected = selected - d
                                             else -> selected = selected + d
                                         }
                                     },
                                     onLongClick = { if (!isSelected) selected = selected + d },
                                 ),
-                            width = 200,
+                            width = TILE,
                         )
                     }
                 }
@@ -305,6 +334,7 @@ fun DesignPage(
     val context = LocalContext.current
     val ratio = screenRatio()
     val movable = d.motif.centred || d.fill == Fill.RADIAL || d.fill == Fill.SWEEP
+    var viewing by remember { mutableStateOf(false) }
     Scaffold(
         topBar = {
             TopAppBar(
@@ -363,6 +393,21 @@ fun DesignPage(
                         ),
                 ) {
                     preview?.let { Image(it, "Preview", Modifier.fillMaxSize(), contentScale = ContentScale.Crop) }
+                }
+                // Beside the preview, not on it, where a touch moves the point.
+                IconButton({ viewing = true }, Modifier.align(Alignment.BottomEnd).padding(end = 8.dp)) {
+                    Icon(Icons.Fullscreen, "Preview full screen")
+                }
+                if (viewing) {
+                    val (sw, sh) = remember { context.app.images.screen() }
+                    Viewer(
+                        1,
+                        0,
+                        onClose = { viewing = false },
+                        key = { it },
+                        load = { withContext(painting) { gpu(Painter.render(d, sw, sh)) } },
+                        thumb = { preview },
+                    )
                 }
             }
             Column(Modifier.weight(0.58f).verticalScroll(rememberScrollState()).padding(bottom = 16.dp)) {

@@ -209,7 +209,7 @@ private fun chooseLive(context: Context) {
     }
 }
 
-/** The current picture as the screen shows it (tap to frame it), when it changes next, and Previous / Next. */
+/** The current picture as the screen shows it (tap to see it full screen), when it changes next, and Previous / Next. */
 @Composable
 private fun Preview(
     screen: Screen,
@@ -224,6 +224,8 @@ private fun Preview(
     val id = p.current
     val busy by app.engine.busy.collectAsState()
     val (sw, sh) = remember { app.images.screen() }
+    var viewing by remember { mutableStateOf(false) }
+    if (viewing && id != null) WallpaperViewer(id, r.frame(id), r.finish, onClose = { viewing = false })
     // "5 minutes ago" goes stale while the page stays open; re-read the clock now and then.
     val now by produceState(System.currentTimeMillis()) {
         while (true) {
@@ -237,7 +239,7 @@ private fun Preview(
                 .width(120.dp)
                 .aspectRatio(sw / sh.toFloat())
                 .clip(MaterialTheme.shapes.large)
-                .clickable(enabled = id != null) { id?.let(onFrame) },
+                .clickable(enabled = id != null) { viewing = true },
         ) {
             Framed(rememberThumb(id), id?.let { r.frame(it) } ?: Framing.of(r.fit), r.finish, Modifier.fillMaxSize())
             if (busy) CircularProgressIndicator(Modifier.align(Alignment.Center).size(32.dp), color = Color.White)

@@ -38,7 +38,7 @@ private val help =
                     "It decides whether Badal changes that screen at all. Off, Badal leaves the wallpaper you have alone.",
                 "What are Previous and Next?" to
                     "Next puts the next picture up now. Previous goes back one, and Next then returns to where you were. " +
-                    "Tap the picture, or the crop button, to frame it.",
+                    "Tap the picture to see it full screen, as the wallpaper shows it, or the crop button to frame it.",
                 "What does Same as home do?" to
                     "The lock screen shows the home screen's picture and changes with it. Its own Darken and Shade still apply.",
                 "Shuffle or In order?" to
@@ -46,7 +46,7 @@ private val help =
                     "In order plays the album as it is arranged (reorder it from the album's menu).",
                 "Can a screen show just one picture?" to
                     "Yes. Tap Album, then the picture button beside an album, and choose one. It stays until By the hour or " +
-                    "a mode puts another album up.",
+                    "a mode puts another album up. Long-press a picture there to see it full screen first.",
             ),
         "When it changes" to
             listOf(
@@ -68,8 +68,9 @@ private val help =
                     "Fill crops the picture to cover the screen. Whole shows all of it over a blurred copy. A picture you framed " +
                     "by hand keeps its frame.",
                 "How do I frame a picture?" to
-                    "Tap it on the Home or Lock tab, or choose Frame in its album. Drag to move, pinch to zoom, double-tap to " +
-                    "switch between Fill and Whole. Each screen keeps its own frame.",
+                    "Tap the crop button on the Home or Lock tab, or choose Frame in its album. Drag to move, pinch to zoom, " +
+                    "double-tap to switch between Fill and Whole. Each screen keeps its own frame. The button beside Save " +
+                    "shows the result full screen.",
                 "Darken and Shade" to
                     "Darken dims the whole picture, so a busy one doesn't hide icons or the clock. Shade, on the lock screen, " +
                     "darkens only the top and fades out below the clock.",
@@ -86,9 +87,10 @@ private val help =
         "Designs" to
             listOf(
                 "Making a wallpaper" to
-                    "The Designs tab has hundreds of ready designs. Tap one to change its colours, pattern and finish, then " +
-                    "Add to album. Long-press several to add them as they are. In the designer, drag on the preview to move a " +
-                    "pattern that grows from a point, or a radial or sweep fill. Edit design, in a picture's menu, changes it later.",
+                    "The Designs tab has hundreds of ready designs. Tap one to see it full screen and swipe through the rest. " +
+                    "There, Edit changes its colours, pattern and finish, and Add to album adds it as it is. Long-press " +
+                    "several to add them as they are. In the designer, drag on the preview to move a pattern that grows " +
+                    "from a point, or a radial or sweep fill. Edit design, in a picture's menu, changes it later.",
                 "Saving to the gallery" to
                     "The download button in the designer saves the design to your gallery, in Pictures/Badal, without adding " +
                     "it to an album. In an album, Save to gallery is in a picture's menu, or select several. Photos are " +
@@ -124,7 +126,9 @@ private val help =
                     "and drag it.",
                 "Viewing full screen" to
                     "Swipe to the next picture, pinch or double-tap to zoom in. Tap once to hide the close button and the " +
-                    "system bars, and again to bring them back.",
+                    "system bars, and again to bring them back. Wherever Badal shows a picture, it opens full screen: in " +
+                    "an album from its menu, on the Home and Lock tabs by tapping it, in the designer from the button beside " +
+                    "its preview.",
             ),
         "Settings" to
             listOf(
