@@ -23,8 +23,8 @@ android {
         // Android 15 and newer only (docs/plans/001_wallpaper_rotator.md).
         minSdk = 35
         targetSdk = 37
-        versionCode = 10
-        versionName = "0.7.2"
+        versionCode = 11
+        versionName = "0.8.0"
     }
 
     signingConfigs {
